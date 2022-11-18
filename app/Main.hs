@@ -1,6 +1,7 @@
 module Main where
 
-import Lib
+import qualified Evaluator as E
+import qualified Lib as L
 
 main :: IO ()
-main = putStrLn someFunc
+main = putStrLn L.someFunc
