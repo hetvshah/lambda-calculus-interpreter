@@ -1,7 +1,7 @@
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Evaluator (getFreeVarsFromExp)
-import Lib (Exp (..), Var, someFunc)
+import Evaluator -- (getArgs, getFreeVars)
+import Lib (Bop (..), Exp (..), Uop (..), Var, someFunc)
 import Test.HUnit
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
@@ -27,30 +27,86 @@ ex3 = App (Fun "x" (Var "x")) (Var "x")
 ex4 :: Exp
 ex4 = App (Fun "x" (Var "x")) (Var "y")
 
--- >>> getFreeVarsFromExp ex1
+-- λ x . (3 + 4)
+ex5 :: Exp
+ex5 = Fun "x" (BopE Plus (Int 3) (Int 4))
 
-test_getFreeVarsFromExp :: Test
-test_getFreeVarsFromExp =
-  "getFreeVarsFromExp tests"
+-- λ x . (y / z)
+ex6 :: Exp
+ex6 = Fun "x" (BopE Divide (Var "y") (Var "z"))
+
+test_getFreeVars :: Test
+test_getFreeVars =
+  "getFreeVars tests"
     ~: TestList
-      [ getFreeVarsFromExp ex1 ~?= Set.empty,
-        getFreeVarsFromExp ex2 ~?= Set.empty,
-        getFreeVarsFromExp ex3 ~?= Set.singleton (Var "x"),
-        getFreeVarsFromExp ex4 ~?= Set.singleton (Var "y")
+      [ getFreeVars ex1 ~?= (Set.empty :: Set Var),
+        getFreeVars ex2 ~?= Set.empty,
+        getFreeVars ex3 ~?= Set.singleton "x",
+        getFreeVars ex4 ~?= Set.singleton "y",
+        getFreeVars ex5 ~?= Set.empty,
+        getFreeVars ex6 ~?= Set.fromList ["z", "y"]
       ]
 
--- instance Arbitrary UopE where
---   arbitrary = QC.arbitraryBoundedEnum
+prop_freeOrArg :: Exp -> Bool
+prop_freeOrArg exp = getVars exp == Set.union (getArgs exp) (getFreeVars exp)
 
--- instance Arbitrary BopE where
---   arbitrary = QC.arbitraryBoundedEnum
+test_alphaConverter :: Test
+test_alphaConverter =
+  "alphaConverter tests"
+    ~: TestList
+      [ alphaConverter ex1 ~?= ex1,
+        alphaConverter ex2 ~?= ex2,
+        alphaConverter ex3 ~?= App (Fun "x1" (Var "x1")) (Var "x"),
+        alphaConverter ex4 ~?= ex4,
+        alphaConverter ex5 ~?= ex5,
+        alphaConverter ex6 ~?= ex6
+      ]
 
--- instance Arbitrary Exp where
---   arbitrary = undefined
---   shrink = undefined
+prop_freeVarsRemainFree :: Exp -> Bool
+prop_freeVarsRemainFree exp = getFreeVars exp == getFreeVars (alphaConverter exp)
+
+prop_argsAndFreeVarsDisjoint :: Exp -> Bool
+prop_argsAndFreeVarsDisjoint exp = Set.disjoint (getArgs exp) (getFreeVars exp)
+
+prop_alphaConverter :: Exp -> Bool
+prop_alphaConverter exp = alphaConverter exp == alphaConverter (alphaConverter exp)
+
+test_substitute :: Test
+test_substitute =
+  "substitute tests"
+    ~: TestList
+      [ substitute "x" (Int 1) ex1 ~?= Fun "x" (Int 1),
+        substitute "y" (Bool False) ex1 ~?= Fun "x" (Var "x"),
+        substitute "f" (Int 0) ex2 ~?= Fun "t" (Fun "f" (Var "t")),
+        substitute "t" (Bool True) ex2 ~?= Fun "t" (Fun "f" (Bool True)),
+        substitute "x" (Int 6) ex3 ~?= App (Fun "x" (Int 6)) (Int 6),
+        substitute "y" (Int 5) ex4 ~?= App (Fun "x" (Var "x")) (Int 5),
+        substitute "x" (Bool False) ex4 ~?= App (Fun "x" (Bool False)) (Var "y"),
+        substitute "y" (Int 2) ex5 ~?= Fun "x" (BopE Plus (Int 3) (Int 4)),
+        substitute "x" (Bool False) ex5 ~?= Fun "x" (BopE Plus (Int 3) (Int 4)),
+        substitute "y" (Var "x") ex6 ~?= Fun "x" (BopE Divide (Var "x") (Var "z")),
+        substitute "z" (Bool True) ex6 ~?= Fun "x" (BopE Divide (Var "y") (Bool True))
+      ]
+
+prop_substituteAllButArgs :: Var -> Exp -> Exp -> Bool
+prop_substituteAllButArgs v vExp exp =
+  let isVarInSubbed = Set.member v (getVars (substitute v vExp exp))
+   in isVarInSubbed && Set.member v (getArgs exp) || not isVarInSubbed
+
+prop_substituteTwice :: Var -> Exp -> Exp -> Bool
+prop_substituteTwice v vExp exp = substitute v vExp exp == substitute v vExp (substitute v vExp exp)
+
+instance Arbitrary Uop where
+  arbitrary = QC.arbitraryBoundedEnum
+
+instance Arbitrary Bop where
+  arbitrary = QC.arbitraryBoundedEnum
+
+instance Arbitrary Exp where
+  arbitrary = undefined
+  shrink = undefined
 
 --   arbitrary = QC.sized genExp
-
 --   shrink (Val v) = Val <$> shrink v
 --   shrink (Var v) = Var <$> shrink v
 --   shrink (Op1 o e) = e : [Op1 o e' | e' <- shrink e]
