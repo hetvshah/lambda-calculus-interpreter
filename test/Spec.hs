@@ -35,6 +35,10 @@ ex5 = Fun "x" (BopE Plus (Int 3) (Int 4))
 ex6 :: Exp
 ex6 = Fun "x" (BopE Divide (Var "y") (Var "z"))
 
+-- λ x . ((λ m . m body) x) --> (λ m . m body)
+ex7 :: Exp
+ex7 = Fun "x" (App (Fun "M" (Var "M's Body")) (Var "x"))
+
 test_getFreeVars :: Test
 test_getFreeVars =
   "getFreeVars tests"
@@ -95,6 +99,45 @@ prop_substituteAllButArgs v vExp exp =
 
 prop_substituteTwice :: Var -> Exp -> Exp -> Bool
 prop_substituteTwice v vExp exp = substitute v vExp exp == substitute v vExp (substitute v vExp exp)
+
+test_betaReducer :: Test
+test_betaReducer =
+  "betaReducer tests"
+    ~: TestList
+      [ betaReducer ex1 ~?= ex1,
+        betaReducer ex2 ~?= ex2,
+        betaReducer ex3 ~?= Var "x",
+        betaReducer ex4 ~?= Var "y",
+        betaReducer ex5 ~?= ex5,
+        betaReducer (App ex5 (Var "y")) ~?= Int 7,
+        betaReducer ex6 ~?= ex6,
+        betaReducer (App ex6 (Int 1)) ~?= Int 1
+      ]
+
+prop_noApps :: Exp -> Bool
+prop_noApps exp = case exp of
+  Fun _ e -> prop_noApps e
+  App e1 e2 -> False
+  BopE _ e1 e2 -> prop_noApps e1 && prop_noApps e2
+  UopE _ e -> prop_noApps e
+  _ -> True
+
+test_etaConverter :: Test
+test_etaConverter =
+  "etaConverter tests"
+    ~: TestList
+      [ etaConverter ex1 ~?= ex1,
+        etaConverter ex2 ~?= ex2,
+        etaConverter ex3 ~?= ex3,
+        etaConverter ex4 ~?= ex4,
+        etaConverter ex5 ~?= ex5,
+        etaConverter (App ex5 (Var "y")) ~?= Int 7,
+        etaConverter ex6 ~?= ex6,
+        etaConverter ex7 ~?= Fun "M" (Var "M's Body")
+      ]
+
+prop_etaCorrect :: Exp -> Bool
+prop_etaCorrect exp = betaReducer exp == betaReducer (etaConverter exp)
 
 instance Arbitrary Uop where
   arbitrary = QC.arbitraryBoundedEnum

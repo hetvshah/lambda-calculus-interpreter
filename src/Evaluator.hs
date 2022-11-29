@@ -45,14 +45,12 @@ alphaConverter exp = undefined
 substitute :: Var -> Exp -> Exp -> Exp
 substitute v vExp exp = undefined
 
-evaluate :: Exp -> Exp
-evaluate = undefined
-
 -- Evaluates/simplies the expression through beta reduction
 -- Substitutes and evaluates
 betaReducer :: Exp -> Exp
 betaReducer exp = undefined
 
 -- Reduces expressions (optimization), used before betaReducer
+-- \x -> f x ----> f
 etaConverter :: Exp -> Exp
 etaConverter exp = undefined
