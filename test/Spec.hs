@@ -8,8 +8,38 @@ import Test.QuickCheck qualified as QC
 
 main :: IO ()
 main = do
-  putStrLn someFunc
-  putStrLn "Test suite not yet implemented"
+  putStrLn "----------------------- getFreeVars -----------------------"
+  putStrLn "test_getFreeVars"
+  runTestTT test_getFreeVars
+  putStrLn "prop_freeOrArg"
+  QC.quickCheck prop_freeOrArg
+  putStrLn "----------------------- alphaConverter -----------------------"
+  putStrLn "test_alphaConverter"
+  runTestTT test_alphaConverter
+  putStrLn "prop_freeVarsRemainFree"
+  QC.quickCheck prop_freeVarsRemainFree
+  putStrLn "prop_argsAndFreeVarsDisjoint"
+  QC.quickCheck prop_argsAndFreeVarsDisjoint
+  putStrLn "prop_alphaConverter"
+  QC.quickCheck prop_alphaConverter
+  putStrLn "----------------------- substitute -----------------------"
+  putStrLn "test_substitute"
+  runTestTT test_substitute
+  putStrLn "prop_substituteAllButArgs"
+  QC.quickCheck prop_substituteAllButArgs
+  putStrLn "prop_substituteTwice"
+  QC.quickCheck prop_substituteTwice
+  putStrLn "----------------------- betaReducer -----------------------"
+  putStrLn "test_betaReducer"
+  runTestTT test_betaReducer
+  putStrLn "prop_noApps"
+  QC.quickCheck prop_noApps
+  putStrLn "----------------------- etaConverter -----------------------"
+  putStrLn "test_etaConverter"
+  runTestTT test_etaConverter
+  putStrLn "prop_etaCorrect"
+  QC.quickCheck prop_etaCorrect
+  putStrLn "nice work ツ"
 
 -- λ x . x
 ex1 :: Exp
