@@ -1,6 +1,6 @@
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Evaluator -- (getArgs, getFreeVars)
+import Evaluator
 import Lib (Bop (..), Exp (..), Uop (..), Var, someFunc)
 import Test.HUnit
 import Test.QuickCheck (Arbitrary (..), Gen)
@@ -15,13 +15,13 @@ main = do
   QC.quickCheck prop_freeOrArg
   putStrLn "----------------------- alphaConverter -----------------------"
   putStrLn "test_alphaConverter"
-  runTestTT test_alphaConverter
+  -- runTestTT test_alphaConverter
   putStrLn "prop_freeVarsRemainFree"
-  QC.quickCheck prop_freeVarsRemainFree
+  -- QC.quickCheck prop_freeVarsRemainFree
   putStrLn "prop_argsAndFreeVarsDisjoint"
-  QC.quickCheck prop_argsAndFreeVarsDisjoint
+  -- QC.quickCheck prop_argsAndFreeVarsDisjoint
   putStrLn "prop_alphaConverter"
-  QC.quickCheck prop_alphaConverter
+  -- QC.quickCheck prop_alphaConverter
   putStrLn "----------------------- substitute -----------------------"
   putStrLn "test_substitute"
   runTestTT test_substitute
@@ -84,64 +84,67 @@ test_getFreeVars =
 prop_freeOrArg :: Exp -> Bool
 prop_freeOrArg exp = getVars exp == Set.union (getArgs exp) (getFreeVars exp)
 
-test_alphaConverter :: Test
-test_alphaConverter =
-  "alphaConverter tests"
-    ~: TestList
-      [ alphaConverter ex1 ~?= ex1,
-        alphaConverter ex2 ~?= ex2,
-        alphaConverter ex3 ~?= App (Fun "x1" (Var "x1")) (Var "x"),
-        alphaConverter ex4 ~?= ex4,
-        alphaConverter ex5 ~?= ex5,
-        alphaConverter ex6 ~?= ex6
-      ]
+-- test_alphaConverter :: Test
+-- test_alphaConverter =
+--   "alphaConverter tests"
+--     ~: TestList
+--       [ alphaConverter ex1 ~?= ex1,
+--         alphaConverter ex2 ~?= ex2,
+--         alphaConverter ex3 ~?= App (Fun "x1" (Var "x1")) (Var "x"),
+--         alphaConverter ex4 ~?= ex4,
+--         alphaConverter ex5 ~?= ex5,
+--         alphaConverter ex6 ~?= ex6
+--       ]
 
-prop_freeVarsRemainFree :: Exp -> Bool
-prop_freeVarsRemainFree exp = getFreeVars exp == getFreeVars (alphaConverter exp)
+-- prop_freeVarsRemainFree :: Exp -> Bool
+-- prop_freeVarsRemainFree exp = getFreeVars exp == getFreeVars (alphaConverter exp)
 
-prop_argsAndFreeVarsDisjoint :: Exp -> Bool
-prop_argsAndFreeVarsDisjoint exp = Set.disjoint (getArgs exp) (getFreeVars exp)
+-- prop_argsAndFreeVarsDisjoint :: Exp -> Bool
+-- prop_argsAndFreeVarsDisjoint exp = Set.disjoint (getArgs exp) (getFreeVars exp)
 
-prop_alphaConverter :: Exp -> Bool
-prop_alphaConverter exp = alphaConverter exp == alphaConverter (alphaConverter exp)
+-- prop_alphaConverter :: Exp -> Bool
+-- prop_alphaConverter exp = alphaConverter exp == alphaConverter (alphaConverter exp)
+
+initialStore :: Store
+initialStore = 0
 
 test_substitute :: Test
 test_substitute =
   "substitute tests"
     ~: TestList
-      [ substitute "x" (Int 1) ex1 ~?= Fun "x" (Int 1),
-        substitute "y" (Bool False) ex1 ~?= Fun "x" (Var "x"),
-        substitute "f" (Int 0) ex2 ~?= Fun "t" (Fun "f" (Var "t")),
-        substitute "t" (Bool True) ex2 ~?= Fun "t" (Fun "f" (Bool True)),
-        substitute "x" (Int 6) ex3 ~?= App (Fun "x" (Int 6)) (Int 6),
-        substitute "y" (Int 5) ex4 ~?= App (Fun "x" (Var "x")) (Int 5),
-        substitute "x" (Bool False) ex4 ~?= App (Fun "x" (Bool False)) (Var "y"),
-        substitute "y" (Int 2) ex5 ~?= Fun "x" (BopE Plus (Int 3) (Int 4)),
-        substitute "x" (Bool False) ex5 ~?= Fun "x" (BopE Plus (Int 3) (Int 4)),
-        substitute "y" (Var "x") ex6 ~?= Fun "x" (BopE Divide (Var "x") (Var "z")),
-        substitute "z" (Bool True) ex6 ~?= Fun "x" (BopE Divide (Var "y") (Bool True))
+      [ evalSubstitute "x" (Int 1) ex1 initialStore ~?= ex1,
+        evalSubstitute "y" (Bool False) ex1 initialStore ~?= ex1,
+        evalSubstitute "f" (Int 0) ex2 initialStore ~?= ex2,
+        evalSubstitute "t" (Bool True) ex2 initialStore ~?= ex2,
+        evalSubstitute "x" (Int 6) ex3 initialStore ~?= App (Fun "x" (Var "x")) (Int 6),
+        evalSubstitute "y" (Int 5) ex4 initialStore ~?= App (Fun "x" (Var "x")) (Int 5),
+        evalSubstitute "x" (Bool False) ex4 initialStore ~?= ex4,
+        evalSubstitute "y" (Int 2) ex5 initialStore ~?= ex5,
+        evalSubstitute "x" (Bool False) ex5 initialStore ~?= Fun "x" (BopE Plus (Int 3) (Int 4)),
+        evalSubstitute "y" (Var "x") ex6 initialStore ~?= Fun "x1" (BopE Divide (Var "x") (Var "z")),
+        evalSubstitute "z" (Bool True) ex6 initialStore ~?= Fun "x" (BopE Divide (Var "y") (Bool True))
       ]
 
 prop_substituteAllButArgs :: Var -> Exp -> Exp -> Bool
 prop_substituteAllButArgs v vExp exp =
-  let isVarInSubbed = Set.member v (getVars (substitute v vExp exp))
+  let isVarInSubbed = Set.member v (getVars (evalSubstitute v vExp exp initialStore))
    in isVarInSubbed && Set.member v (getArgs exp) || not isVarInSubbed
 
 prop_substituteTwice :: Var -> Exp -> Exp -> Bool
-prop_substituteTwice v vExp exp = substitute v vExp exp == substitute v vExp (substitute v vExp exp)
+prop_substituteTwice v vExp exp = evalSubstitute v vExp exp initialStore == evalSubstitute v vExp (evalSubstitute v vExp exp initialStore) initialStore
 
 test_betaReducer :: Test
 test_betaReducer =
   "betaReducer tests"
     ~: TestList
-      [ betaReducer ex1 ~?= ex1,
-        betaReducer ex2 ~?= ex2,
-        betaReducer ex3 ~?= Var "x",
-        betaReducer ex4 ~?= Var "y",
-        betaReducer ex5 ~?= ex5,
-        betaReducer (App ex5 (Var "y")) ~?= Int 7,
-        betaReducer ex6 ~?= ex6,
-        betaReducer (App ex6 (Int 1)) ~?= Int 1
+      [ evalBetaReducer ex1 initialStore ~?= ex1,
+        evalBetaReducer ex2 initialStore ~?= ex2,
+        evalBetaReducer ex3 initialStore ~?= Var "x",
+        evalBetaReducer ex4 initialStore ~?= Var "y",
+        evalBetaReducer ex5 initialStore ~?= Fun "x" (Int 7),
+        evalBetaReducer (App ex5 (Var "y")) initialStore ~?= Int 7,
+        evalBetaReducer ex6 initialStore ~?= ex6,
+        evalBetaReducer (App ex6 (Int 1)) initialStore ~?= BopE Divide (Var "y") (Var "z")
       ]
 
 prop_noApps :: Exp -> Bool
@@ -161,13 +164,13 @@ test_etaConverter =
         etaConverter ex3 ~?= ex3,
         etaConverter ex4 ~?= ex4,
         etaConverter ex5 ~?= ex5,
-        etaConverter (App ex5 (Var "y")) ~?= Int 7,
+        etaConverter (App ex5 (Var "y")) ~?= App ex5 (Var "y"),
         etaConverter ex6 ~?= ex6,
         etaConverter ex7 ~?= Fun "M" (Var "M's Body")
       ]
 
 prop_etaCorrect :: Exp -> Bool
-prop_etaCorrect exp = betaReducer exp == betaReducer (etaConverter exp)
+prop_etaCorrect exp = evalBetaReducer exp initialStore == evalBetaReducer (etaConverter exp) initialStore
 
 instance Arbitrary Uop where
   arbitrary = QC.arbitraryBoundedEnum
