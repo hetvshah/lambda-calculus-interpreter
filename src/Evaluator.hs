@@ -1,11 +1,13 @@
 module Evaluator where
 
--- (Exp (..), Var)
 import Control.Monad.State (State)
 import Control.Monad.State qualified as S
 import Data.Set (Set)
 import Data.Set qualified as Set
+import LCParser
 import Lib
+
+type Store = Int
 
 -- Gets all variables from an expression
 getVars :: Exp -> Set Var
@@ -44,8 +46,6 @@ getArgs exp = case exp of
 alphaConverter :: Var -> Exp -> Exp
 alphaConverter exp = undefined
 
-type Store = Int
-
 incr :: State Store Int
 incr = do
   x <- S.get
@@ -58,22 +58,9 @@ getFreshVar v freeVars = do
   let newVar = v ++ show nextCount
   if Set.member newVar freeVars then getFreshVar v freeVars else return newVar
 
--- let subst (e1 : exp) (x : var) (e2 : exp) : exp =
---   let rec sub (vars : VarSet.t) (e1 : exp) (x : var) (e2 : exp) : exp =
--- \| Fun (arg, body) ->
---         if arg = x then Fun (arg, body)
---         else if VarSet.mem arg (free_vars e1) then
---           let arg' = fresh_var_for vars arg in
---           let vars' = VarSet.add arg (VarSet.add arg' vars) in
---           let body' = sub vars' (Var arg') arg body in
---           Fun(arg', sub vars' e1 x body')
---         else
---           let vars' = VarSet.add arg vars in
---           Fun(arg, sub vars' e1 x body)
-
 -- Capture-avoiding-substitute every var v with exp vExp in exp
 substitute :: Var -> Exp -> Exp -> State Store Exp
-substitute v vExp exp = sub vars v vExp exp
+substitute v'' vExp exp = sub vars v'' vExp exp
   where
     vars :: Set Var
     vars = Set.union (getFreeVars vExp) (getFreeVars exp)
@@ -84,14 +71,14 @@ substitute v vExp exp = sub vars v vExp exp
         if v == v'
           then return $ Fun v e
           else
-            if Set.member v (getFreeVars vExp)
+            if Set.member v (getFreeVars vExp')
               then do
                 -- alpha conversion
-                arg' <- getFreshVar v (getFreeVars vExp)
-                let vars' = Set.insert v (Set.insert arg' vars)
-                body' <- sub vars' arg' (Var v) e
-                body'' <- sub vars' v' vExp body'
-                return $ Fun arg' body''
+                v1 <- getFreshVar v vars
+                let vars' = Set.insert v (Set.insert v1 vars)
+                body' <- sub vars' v (Var v1) e
+                body'' <- sub vars' v' vExp' body'
+                return $ Fun v1 body''
               else Fun v <$> sub (Set.insert v vars') v' vExp' e
       App e1 e2 -> App <$> sub vars' v' vExp' e1 <*> sub vars' v' vExp' e2
       Int _ -> return exp'
@@ -149,8 +136,8 @@ betaReducer exp = case exp of
         sub_val <- substitute v e2 body
         betaReducer sub_val
       e -> App <$> betaReducer e <*> betaReducer e2
-  BopE o e1 e2 -> return $ evalBop o e1 e2
-  UopE o e -> return $ evalUop o e
+  BopE o e1 e2 -> evalBop o <$> betaReducer e1 <*> betaReducer e2
+  UopE o e -> evalUop o <$> betaReducer e
   _ -> return exp
 
 evalBetaReducer :: Exp -> Store -> Exp
@@ -170,3 +157,19 @@ etaConverter exp = case exp of
 -- y combinator for recursion
 -- Rename function
 -- State monad for name generation
+
+initialStore :: Store
+initialStore = 0
+
+lc :: IO ()
+lc = do
+  putStr "--> "
+  str <- getLine
+  case LCParser.parseLCExp str of
+    Right exp -> do
+      let v = evalBetaReducer exp initialStore
+      putStrLn (pretty v)
+      lc
+    Left _s -> do
+      putStrLn _s
+      lc

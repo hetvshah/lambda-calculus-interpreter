@@ -40,6 +40,13 @@ data Bop
   | Le -- `<=` :: a -> a -> Bool
   deriving (Eq, Show, Enum, Bounded)
 
+level :: Bop -> Int
+level Times = 7
+level Divide = 7
+level Plus = 5
+level Minus = 5
+level _ = 3 -- comparison operators
+
 class PP a where
   pp :: a -> Doc
 
@@ -51,6 +58,18 @@ pretty = PP.render . pp
 -- | Compact version. Displays its argument without newlines.
 oneLine :: PP a => a -> String
 oneLine = PP.renderStyle (PP.style {PP.mode = PP.OneLineMode}) . pp
+
+isValue :: Exp -> Bool
+isValue exp = case exp of
+  Var _ -> True
+  Int _ -> True
+  Bool _ -> True
+  _ -> False
+
+ppp :: Exp -> Doc
+ppp e
+  | isValue e = pp e
+  | otherwise = PP.parens $ pp e
 
 instance PP String where
   pp :: String -> Doc
@@ -65,10 +84,11 @@ instance PP Exp where
   pp (Var v) = pp v
   pp (Int i) = PP.int i
   pp (Bool b) = pp b
-  pp (Fun v e) = PP.text (lambda <> " " <> v <> " . ") <> PP.parens (pp e)
-  pp (App e1 e2) = PP.parens (pp e1) <> PP.char ' ' <> PP.parens (pp e2)
-  pp (BopE b e1 e2) = PP.parens (pp e1) <> pp b <> PP.parens (pp e2)
-  pp (UopE u e) = pp u <> PP.parens (pp e)
+  pp (Fun v e) = PP.text (lambda <> " " <> v <> " . ") <> ppp e
+  pp (App e1 e2) = ppp e1 <> PP.char ' ' <> ppp e2
+  pp (BopE b e1 e2) = ppp e1 <> PP.text " " <> pp b <> PP.text " " <> ppp e2
+  pp (UopE Not e) = pp Not <> PP.text " " <> ppp e
+  pp (UopE Neg e) = pp Neg <> ppp e
 
 instance PP Uop where
   pp :: Uop -> Doc

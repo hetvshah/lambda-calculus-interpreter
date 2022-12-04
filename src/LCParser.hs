@@ -1,6 +1,7 @@
 module LCParser where
 
 import Control.Applicative
+import Data.Char qualified as Char
 import Data.Functor (($>))
 import Lib
 import Parser (Parser)
@@ -15,32 +16,77 @@ stringP s = wsP (P.string s $> ())
 parens :: Parser a -> Parser a
 parens x = P.between (stringP "(") x (stringP ")")
 
-dotP :: Parser a -> Parser a
-dotP = undefined
+constP :: String -> a -> Parser a
+constP s x = x <$ wsP (P.string s)
+
+reserved :: [String]
+reserved =
+  [ "not",
+    "true",
+    "false"
+  ]
 
 varP :: Parser Var
-varP = undefined
+varP =
+  P.filter
+    ( \s ->
+        ( case s of
+            [] -> False
+            c : _ -> not $ Char.isDigit c
+        )
+          && s `notElem` reserved
+    )
+    (wsP (many (P.upper <|> P.lower <|> P.digit <|> P.char '_')))
 
 intP :: Parser Exp
-intP = undefined
+intP = Int <$> wsP P.int
 
 boolP :: Parser Exp
-boolP = undefined
+boolP = constP "true" (Bool True) <|> constP "false" (Bool False)
 
 uopP :: Parser Uop
-uopP = undefined
+uopP = wsP $ constP "-" Neg <|> constP "not" Not
 
 bopP :: Parser Bop
-bopP = undefined
+bopP =
+  constP "+" Plus
+    <|> constP "-" Minus
+    <|> constP "*" Times
+    <|> constP "//" Divide
+    <|> constP "%" Modulo
+    <|> constP "==" Eq
+    <|> constP ">=" Ge
+    <|> constP ">" Gt
+    <|> constP "<=" Le
+    <|> constP "<" Lt
 
 funP :: Parser Exp
-funP = undefined
+funP = Fun <$> (stringP "\\" *> varP <* wsP (stringP ".")) <*> fullExpP
 
-appP :: Parser Exp
-appP = undefined
-
+-- z + x * x + y
+-- (\x . x + x) y + y
 expP :: Parser Exp
-expP = undefined
+expP = compP
+  where
+    compP = sumP `P.chainl1` opAtLevel (level Gt)
+    sumP = prodP `P.chainl1` opAtLevel (level Plus)
+    prodP = uopexpP `P.chainl1` opAtLevel (level Times)
+    uopexpP =
+      baseP
+        <|> UopE <$> uopP <*> uopexpP
+    baseP =
+      funP
+        <|> Var <$> varP
+        <|> parens fullExpP
+        <|> intP
+        <|> boolP
 
--- parseLCFile :: String -> IO (Either P.ParseError Exp)
--- parseLCFile = P.parseFromFile (const <$> expP <*> P.eof)
+fullExpP :: Parser Exp
+fullExpP = foldl1 App <$> some expP
+
+-- | Parse an operator at a specified precedence level
+opAtLevel :: Int -> Parser (Exp -> Exp -> Exp)
+opAtLevel l = BopE <$> P.filter (\x -> level x == l) bopP
+
+parseLCExp :: String -> Either P.ParseError Exp
+parseLCExp = P.parse fullExpP
