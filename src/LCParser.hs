@@ -3,7 +3,7 @@ module LCParser where
 import Control.Applicative
 import Data.Char qualified as Char
 import Data.Functor (($>))
-import Lib
+import LCSyntax
 import Parser (Parser)
 import Parser qualified as P
 

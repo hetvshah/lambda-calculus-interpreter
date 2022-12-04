@@ -1,11 +1,11 @@
-module Evaluator where
+module LCEvaluator where
 
 import Control.Monad.State (State)
 import Control.Monad.State qualified as S
 import Data.Set (Set)
 import Data.Set qualified as Set
 import LCParser
-import Lib
+import LCSyntax
 
 type Store = Int
 
@@ -126,27 +126,27 @@ evalUop o e = UopE o e
 
 -- Evaluates/simplies the expression through beta reduction
 -- Substitutes and evaluates
-betaReducer :: Exp -> State Store Exp
-betaReducer exp = case exp of
-  Fun v e -> Fun v <$> betaReducer e
+betaReduce :: Exp -> State Store Exp
+betaReduce exp = case exp of
+  Fun v e -> Fun v <$> betaReduce e
   App e1 e2 -> do
     whnf_e1 <- whnf e1
     case whnf_e1 of
       Fun v body -> do
         sub_val <- substitute v e2 body
-        betaReducer sub_val
-      e -> App <$> betaReducer e <*> betaReducer e2
-  BopE o e1 e2 -> evalBop o <$> betaReducer e1 <*> betaReducer e2
-  UopE o e -> evalUop o <$> betaReducer e
+        betaReduce sub_val
+      e -> App <$> betaReduce e <*> betaReduce e2
+  BopE o e1 e2 -> evalBop o <$> betaReduce e1 <*> betaReduce e2
+  UopE o e -> evalUop o <$> betaReduce e
   _ -> return exp
 
-evalBetaReducer :: Exp -> Store -> Exp
-evalBetaReducer exp = S.evalState (betaReducer exp)
+evalBetaReduce :: Exp -> Store -> Exp
+evalBetaReduce exp = S.evalState (betaReduce exp)
 
 -- Reduces expressions
 -- \x -> f x ----> f
-etaConverter :: Exp -> Exp
-etaConverter exp = case exp of
+etaReduce :: Exp -> Exp
+etaReduce exp = case exp of
   Fun v (App (Fun v' body) (Var x)) ->
     if v == x
       then if Set.member v (getFreeVars body) then exp else Fun v' body
@@ -160,16 +160,3 @@ etaConverter exp = case exp of
 
 initialStore :: Store
 initialStore = 0
-
-lc :: IO ()
-lc = do
-  putStr "--> "
-  str <- getLine
-  case LCParser.parseLCExp str of
-    Right exp -> do
-      let v = evalBetaReducer exp initialStore
-      putStrLn (pretty v)
-      lc
-    Left _s -> do
-      putStrLn _s
-      lc

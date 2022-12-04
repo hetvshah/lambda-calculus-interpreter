@@ -1,7 +1,7 @@
 import Control.Applicative
-import Evaluator
+import LCEvaluator
 import LCParser
-import Lib
+import LCSyntax
 import Parser (Parser)
 import Parser qualified as P
 import Test.HUnit

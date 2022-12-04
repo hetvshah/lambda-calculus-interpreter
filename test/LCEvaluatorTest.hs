@@ -1,7 +1,7 @@
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Evaluator
-import Lib (Bop (..), Exp (..), Uop (..), Var, someFunc)
+import LCEvaluator
+import LCSyntax (Bop (..), Exp (..), Uop (..), Var, someFunc)
 import Test.HUnit
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
@@ -29,14 +29,14 @@ main = do
   QC.quickCheck prop_substituteAllButArgs
   putStrLn "prop_substituteTwice"
   QC.quickCheck prop_substituteTwice
-  putStrLn "----------------------- betaReducer -----------------------"
-  putStrLn "test_betaReducer"
-  runTestTT test_betaReducer
+  putStrLn "----------------------- betaReduce -----------------------"
+  putStrLn "test_betaReduce"
+  runTestTT test_betaReduce
   putStrLn "prop_noApps"
   QC.quickCheck prop_noApps
-  putStrLn "----------------------- etaConverter -----------------------"
-  putStrLn "test_etaConverter"
-  runTestTT test_etaConverter
+  putStrLn "----------------------- etaReduce -----------------------"
+  putStrLn "test_etaReduce"
+  runTestTT test_etaReduce
   putStrLn "prop_etaCorrect"
   QC.quickCheck prop_etaCorrect
   putStrLn "nice work ツ"
@@ -105,9 +105,6 @@ prop_freeOrArg exp = getVars exp == Set.union (getArgs exp) (getFreeVars exp)
 -- prop_alphaConverter :: Exp -> Bool
 -- prop_alphaConverter exp = alphaConverter exp == alphaConverter (alphaConverter exp)
 
-initialStore :: Store
-initialStore = 0
-
 test_substitute :: Test
 test_substitute =
   "substitute tests"
@@ -133,18 +130,18 @@ prop_substituteAllButArgs v vExp exp =
 prop_substituteTwice :: Var -> Exp -> Exp -> Bool
 prop_substituteTwice v vExp exp = evalSubstitute v vExp exp initialStore == evalSubstitute v vExp (evalSubstitute v vExp exp initialStore) initialStore
 
-test_betaReducer :: Test
-test_betaReducer =
-  "betaReducer tests"
+test_betaReduce :: Test
+test_betaReduce =
+  "betaReduce tests"
     ~: TestList
-      [ evalBetaReducer ex1 initialStore ~?= ex1,
-        evalBetaReducer ex2 initialStore ~?= ex2,
-        evalBetaReducer ex3 initialStore ~?= Var "x",
-        evalBetaReducer ex4 initialStore ~?= Var "y",
-        evalBetaReducer ex5 initialStore ~?= Fun "x" (Int 7),
-        evalBetaReducer (App ex5 (Var "y")) initialStore ~?= Int 7,
-        evalBetaReducer ex6 initialStore ~?= ex6,
-        evalBetaReducer (App ex6 (Int 1)) initialStore ~?= BopE Divide (Var "y") (Var "z")
+      [ evalBetaReduce ex1 initialStore ~?= ex1,
+        evalBetaReduce ex2 initialStore ~?= ex2,
+        evalBetaReduce ex3 initialStore ~?= Var "x",
+        evalBetaReduce ex4 initialStore ~?= Var "y",
+        evalBetaReduce ex5 initialStore ~?= Fun "x" (Int 7),
+        evalBetaReduce (App ex5 (Var "y")) initialStore ~?= Int 7,
+        evalBetaReduce ex6 initialStore ~?= ex6,
+        evalBetaReduce (App ex6 (Int 1)) initialStore ~?= BopE Divide (Var "y") (Var "z")
       ]
 
 prop_noApps :: Exp -> Bool
@@ -155,22 +152,22 @@ prop_noApps exp = case exp of
   UopE _ e -> prop_noApps e
   _ -> True
 
-test_etaConverter :: Test
-test_etaConverter =
-  "etaConverter tests"
+test_etaReduce :: Test
+test_etaReduce =
+  "etaReduce tests"
     ~: TestList
-      [ etaConverter ex1 ~?= ex1,
-        etaConverter ex2 ~?= ex2,
-        etaConverter ex3 ~?= ex3,
-        etaConverter ex4 ~?= ex4,
-        etaConverter ex5 ~?= ex5,
-        etaConverter (App ex5 (Var "y")) ~?= App ex5 (Var "y"),
-        etaConverter ex6 ~?= ex6,
-        etaConverter ex7 ~?= Fun "M" (Var "M's Body")
+      [ etaReduce ex1 ~?= ex1,
+        etaReduce ex2 ~?= ex2,
+        etaReduce ex3 ~?= ex3,
+        etaReduce ex4 ~?= ex4,
+        etaReduce ex5 ~?= ex5,
+        etaReduce (App ex5 (Var "y")) ~?= App ex5 (Var "y"),
+        etaReduce ex6 ~?= ex6,
+        etaReduce ex7 ~?= Fun "M" (Var "M's Body")
       ]
 
 prop_etaCorrect :: Exp -> Bool
-prop_etaCorrect exp = evalBetaReducer exp initialStore == evalBetaReducer (etaConverter exp) initialStore
+prop_etaCorrect exp = evalBetaReduce exp initialStore == evalBetaReduce (etaReduce exp) initialStore
 
 instance Arbitrary Uop where
   arbitrary = QC.arbitraryBoundedEnum

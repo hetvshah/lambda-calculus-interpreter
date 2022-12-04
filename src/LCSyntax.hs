@@ -1,4 +1,4 @@
-module Lib where
+module LCSyntax where
 
 import Data.Bool qualified as PP
 import Text.PrettyPrint (Doc, (<+>))
