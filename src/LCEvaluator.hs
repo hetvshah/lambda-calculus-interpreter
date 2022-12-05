@@ -153,10 +153,5 @@ etaReduce exp = case exp of
       else exp
   _ -> exp
 
--- Checkpoint 1:
--- y combinator for recursion
--- Rename function
--- State monad for name generation
-
 initialStore :: Store
 initialStore = 0
