@@ -90,3 +90,6 @@ opAtLevel l = BopE <$> P.filter (\x -> level x == l) bopP
 
 parseLCExp :: String -> Either P.ParseError Exp
 parseLCExp = P.parse fullExpP
+
+-- parseLuFile :: String -> IO (Either P.ParseError Block)
+-- parseLuFile = P.parseFromFile (const <$> blockP <*> P.eof)

@@ -2,12 +2,16 @@ module LCEvaluator where
 
 import Control.Monad.State (State)
 import Control.Monad.State qualified as S
+import Data.Map (Map, (!?))
+import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import LCParser
 import LCSyntax
 
 type Store = Int
+
+type Store' = Map Var Exp
 
 -- Gets all variables from an expression
 getVars :: Exp -> Set Var
@@ -155,3 +159,9 @@ etaReduce exp = case exp of
 
 initialStore :: Store
 initialStore = 0
+
+initialStore' :: Store'
+initialStore' = Map.empty
+
+addStore' :: Var -> Exp -> State Store' ()
+addStore' var exp = undefined
