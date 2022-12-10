@@ -39,10 +39,10 @@ varP =
     (wsP (many (P.upper <|> P.lower <|> P.digit <|> P.char '_')))
 
 intP :: Parser Exp
-intP = Int <$> wsP P.int
+intP = IntE <$> wsP P.int
 
 boolP :: Parser Exp
-boolP = constP "true" (Bool True) <|> constP "false" (Bool False)
+boolP = constP "true" (BoolE True) <|> constP "false" (BoolE False)
 
 uopP :: Parser Uop
 uopP = wsP $ constP "-" Neg <|> constP "not" Not
@@ -84,12 +84,14 @@ expP = compP
 fullExpP :: Parser Exp
 fullExpP = foldl1 App <$> some expP
 
+statementP :: Parser Statement
+statementP =
+  Assign <$> varP <*> (stringP "=" *> fullExpP)
+    <|> Expression <$> fullExpP
+
 -- | Parse an operator at a specified precedence level
 opAtLevel :: Int -> Parser (Exp -> Exp -> Exp)
 opAtLevel l = BopE <$> P.filter (\x -> level x == l) bopP
 
-parseLCExp :: String -> Either P.ParseError Exp
-parseLCExp = P.parse fullExpP
-
--- parseLuFile :: String -> IO (Either P.ParseError Block)
--- parseLuFile = P.parseFromFile (const <$> blockP <*> P.eof)
+parseLCStat :: String -> Either P.ParseError Statement
+parseLCStat = P.parse statementP

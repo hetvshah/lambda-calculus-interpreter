@@ -6,39 +6,33 @@ import LCParser qualified as P
 import LCSyntax qualified as S
 import System.IO
 
-data ReductionType = Beta | Eta
-
-typeToEnum :: String -> ReductionType
-typeToEnum str = case str of
-  "beta" -> Beta
-  "eta" -> Eta
-  _ -> error "shouldn't come here"
-
 main :: IO ()
 main = do
-  putStrLn "Welcome to Lambda Calculus Interpreter!"
+  hSetBuffering stdin LineBuffering
+  putStrLn "\nWelcome to Lambda Calculus Interpreter!"
   putStrLn "':l filename reductType' to interpret from a file."
   putStrLn "':t reductType' to specify type of reduction (beta, eta)."
-  putStrLn "or type in your favorite LC expression :D"
-  mainLoop Beta
+  putStrLn "or type in your favorite LC expression :D\n"
+  mainLoop S.Beta E.initialStore
   where
-    mainLoop rt = do
-      hSetBuffering stdin LineBuffering
+    mainLoop :: S.ReductionType -> E.Store -> IO ()
+    mainLoop rt store = do
       putStr "--> "
       str <- getLine
       case List.uncons (words str) of
         Just (":l", [fn, reductType]) -> do
           undefined
-        Just (":t", [reductType]) -> mainLoop (typeToEnum reductType)
-        Just _ -> case P.parseLCExp str of
-          Right exp -> do
-            let v = E.evalBetaReduce exp E.initialStore
-            putStrLn (S.pretty v)
-            mainLoop rt
+        Just (":t", [reductType]) -> mainLoop (S.typeToEnum reductType) store
+        Just _ -> case P.parseLCStat str of
+          Right stat -> case stat of
+            S.Assign var exp -> do
+              let new_store = E.evalAddDef var exp store
+              mainLoop rt new_store -- State.evalState (E.addDef var exp)
+            S.Expression exp -> do
+              let v = E.evalBetaReduce exp store
+              putStrLn (S.pretty v)
+              mainLoop rt store
           Left _s -> do
             putStrLn _s
-            mainLoop rt
-        Nothing -> mainLoop rt
-
--- 0 : beta reduce
--- 1 : eta reduce
+            mainLoop rt store
+        Nothing -> mainLoop rt store

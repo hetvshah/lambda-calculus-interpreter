@@ -16,8 +16,8 @@ data Exp
   = Var Var -- local variables
   | Fun Var Exp -- functions: fun x -> e
   | App Exp Exp -- applications
-  | Int Int -- integers
-  | Bool Bool -- booleans
+  | IntE Int -- integers
+  | BoolE Bool -- booleans
   | BopE Bop Exp Exp -- binary operations
   | UopE Uop Exp -- unary operations
   deriving (Eq, Show)
@@ -47,6 +47,12 @@ level Plus = 5
 level Minus = 5
 level _ = 3 -- comparison operators
 
+data Statement
+  = Assign Var Exp -- x = e
+  | Expression Exp -- some expression to evaluate
+
+-------------------------------- Pretty Printer --------------------------------
+
 class PP a where
   pp :: a -> Doc
 
@@ -62,8 +68,8 @@ oneLine = PP.renderStyle (PP.style {PP.mode = PP.OneLineMode}) . pp
 isValue :: Exp -> Bool
 isValue exp = case exp of
   Var _ -> True
-  Int _ -> True
-  Bool _ -> True
+  IntE _ -> True
+  BoolE _ -> True
   _ -> False
 
 ppp :: Exp -> Doc
@@ -82,8 +88,8 @@ instance PP Bool where
 instance PP Exp where
   pp :: Exp -> Doc
   pp (Var v) = pp v
-  pp (Int i) = PP.int i
-  pp (Bool b) = pp b
+  pp (IntE i) = PP.int i
+  pp (BoolE b) = pp b
   pp (Fun v e) = PP.text (lambda <> " " <> v <> " . ") <> ppp e
   pp (App e1 e2) = ppp e1 <> PP.char ' ' <> ppp e2
   pp (BopE b e1 e2) = ppp e1 <> PP.text " " <> pp b <> PP.text " " <> ppp e2
@@ -108,5 +114,14 @@ instance PP Bop where
   pp Le = PP.text "<="
   pp Eq = PP.text "=="
 
--- >>> pp ex2
--- fun t . (fun f . (t))
+instance PP Statement where
+  pp (Assign x e) = pp x <+> PP.equals <+> pp e
+  pp (Expression e) = pp e
+
+data ReductionType = Beta | Eta
+
+typeToEnum :: String -> ReductionType
+typeToEnum str = case str of
+  "beta" -> Beta
+  "eta" -> Eta
+  _ -> error "shouldn't come here"
