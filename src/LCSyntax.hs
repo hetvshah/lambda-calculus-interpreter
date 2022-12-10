@@ -4,9 +4,6 @@ import Data.Bool qualified as PP
 import Text.PrettyPrint (Doc, (<+>))
 import Text.PrettyPrint qualified as PP
 
-someFunc :: String
-someFunc = "Hello!"
-
 lambda :: String
 lambda = "λ"
 
