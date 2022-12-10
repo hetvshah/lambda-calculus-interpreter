@@ -202,3 +202,11 @@ evalAddDef v exp = S.execState (addDef v exp)
 evalS :: Statement -> State Store ()
 evalS (Assign v exp) = undefined
 evalS (Expression exp) = undefined
+
+reduce :: ReductionType -> Exp -> State Store Exp
+reduce Beta = betaReduce
+reduce Eta = return . etaReduce
+reduce BetaEta = undefined
+
+evalReduce :: ReductionType -> Exp -> Store -> Exp
+evalReduce rt exp = S.evalState (reduce rt exp)

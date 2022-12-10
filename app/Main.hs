@@ -12,10 +12,10 @@ import System.IO.Error qualified as IO
 main :: IO ()
 main = do
   IO.hSetBuffering IO.stdin IO.LineBuffering
-  putStrLn "\nWelcome to Lambda Calculus Interpreter!"
+  putStrLn "\nWelcome to ƛ-Calculus Interpreter!"
   putStrLn "':l filename reductType' to interpret from a file."
-  putStrLn "':t reductType' to specify type of reduction (beta, eta)."
-  putStrLn "or type in your favorite LC expression :D\n"
+  putStrLn "':t reductType' to specify type of reduction (beta, eta, beta-eta)."
+  putStrLn "or type in your favorite LC expression 🙃\n"
   mainLoop S.Beta E.initialStore IO.stdin
   where
     mainLoop :: S.ReductionType -> E.Store -> IO.Handle -> IO ()
@@ -35,10 +35,11 @@ main = do
         Just _ -> case P.parseLCStat str of
           Right stat -> case stat of
             S.Assign var exp -> do
-              let new_store = E.evalAddDef var exp store
+              let new_store = E.evalAddDef var exp store -- need to case on rt
               mainLoop rt new_store file
             S.Expression exp -> do
-              let v = E.evalBetaReduce exp store -- need to case on rt for type od reduction
+              let v = E.evalReduce rt exp store
+              -- E.evalBetaReduce exp store -- need to case on rt
               putStrLn (S.pretty v)
               mainLoop rt store file
           Left _s -> do

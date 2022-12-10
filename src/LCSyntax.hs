@@ -115,10 +115,11 @@ instance PP Statement where
   pp (Assign x e) = pp x <+> PP.equals <+> pp e
   pp (Expression e) = pp e
 
-data ReductionType = Beta | Eta
+data ReductionType = Beta | Eta | BetaEta
 
 typeToEnum :: String -> ReductionType
 typeToEnum str = case str of
   "beta" -> Beta
   "eta" -> Eta
+  "beta-eta" -> BetaEta
   _ -> error "shouldn't come here"
