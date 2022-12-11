@@ -41,16 +41,12 @@ getFreeVars exp = case exp of
 getArgs :: Exp -> Set Var
 getArgs exp = case exp of
   Var v -> Set.empty
-  Fun v e -> Set.singleton v
+  Fun v e -> Set.union (Set.singleton v) (getArgs e)
   App e1 e2 -> Set.union (getArgs e1) (getArgs e2)
   IntE _ -> Set.empty
   BoolE _ -> Set.empty
   BopE _ e1 e2 -> Set.union (getArgs e1) (getArgs e2)
   UopE _ e -> getArgs e
-
--- Renames var in exp with a uniquely generated name
-alphaConverter :: Var -> Exp -> Exp
-alphaConverter exp = undefined
 
 incr :: State Store Int
 incr = do
@@ -118,6 +114,7 @@ evalBop :: Bop -> Exp -> Exp -> Exp
 evalBop Plus (IntE x) (IntE y) = IntE $ x + y
 evalBop Minus (IntE x) (IntE y) = IntE $ x - y
 evalBop Times (IntE x) (IntE y) = IntE $ x * y
+evalBop Divide (IntE x) (IntE 0) = BopE Divide (IntE x) (IntE 0)
 evalBop Divide (IntE x) (IntE y) = IntE $ x `div` y
 evalBop Modulo (IntE x) (IntE y) = IntE $ x `mod` y
 evalBop Eq x y = BoolE $ x == y
@@ -130,7 +127,6 @@ evalBop o e1 e2 = BopE o e1 e2
 -- Evaluate a unary operation expression
 evalUop :: Uop -> Exp -> Exp
 evalUop Neg (IntE i) = IntE (-i)
-evalUop Neg (BoolE b) = error "not well typed"
 evalUop Not (IntE i) = if i > 0 then IntE 0 else IntE 1
 evalUop Not (BoolE b) = BoolE (not b)
 evalUop o e = UopE o e
@@ -199,14 +195,10 @@ addDef var exp = do
 evalAddDef :: Var -> Exp -> Store -> Store
 evalAddDef v exp = S.execState (addDef v exp)
 
-evalS :: Statement -> State Store ()
-evalS (Assign v exp) = undefined
-evalS (Expression exp) = undefined
-
 reduce :: ReductionType -> Exp -> State Store Exp
-reduce Beta = betaReduce
-reduce Eta = return . etaReduce
-reduce BetaEta = undefined
+reduce Beta exp = betaReduce exp
+reduce Eta exp = return $ etaReduce exp
+reduce BetaEta exp = betaReduce exp >>= \e -> return $ etaReduce e
 
 evalReduce :: ReductionType -> Exp -> Store -> Exp
 evalReduce rt exp = S.evalState (reduce rt exp)

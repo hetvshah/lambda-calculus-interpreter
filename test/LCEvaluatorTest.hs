@@ -1,7 +1,9 @@
+import Data.Map (Map, (!?))
+import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import LCEvaluator
-import LCSyntax (Bop (..), Exp (..), Uop (..), Var, someFunc)
+import LCSyntax
 import Test.HUnit
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
@@ -13,15 +15,6 @@ main = do
   runTestTT test_getFreeVars
   putStrLn "prop_freeOrArg"
   QC.quickCheck prop_freeOrArg
-  putStrLn "----------------------- alphaConverter -----------------------"
-  putStrLn "test_alphaConverter"
-  -- runTestTT test_alphaConverter
-  putStrLn "prop_freeVarsRemainFree"
-  -- QC.quickCheck prop_freeVarsRemainFree
-  putStrLn "prop_argsAndFreeVarsDisjoint"
-  -- QC.quickCheck prop_argsAndFreeVarsDisjoint
-  putStrLn "prop_alphaConverter"
-  -- QC.quickCheck prop_alphaConverter
   putStrLn "----------------------- substitute -----------------------"
   putStrLn "test_substitute"
   runTestTT test_substitute
@@ -32,13 +25,33 @@ main = do
   putStrLn "----------------------- betaReduce -----------------------"
   putStrLn "test_betaReduce"
   runTestTT test_betaReduce
-  putStrLn "prop_noApps"
-  QC.quickCheck prop_noApps
+  putStrLn "prop_betaNoRedux"
+  QC.quickCheck prop_betaNoRedux
+  putStrLn "prop_betaReduceTwice"
+  QC.quickCheck prop_betaReduceTwice
+  putStrLn "prop_betaFreeWasFree"
+  QC.quickCheck prop_betaFreeWasFree
   putStrLn "----------------------- etaReduce -----------------------"
   putStrLn "test_etaReduce"
   runTestTT test_etaReduce
-  putStrLn "prop_etaCorrect"
-  QC.quickCheck prop_etaCorrect
+  putStrLn "prop_etaReduceTwice"
+  QC.quickCheck prop_etaReduceTwice
+  putStrLn "prop_etaFreeWasFree"
+  QC.quickCheck prop_etaFreeWasFree
+  putStrLn "----------------------- addDef -----------------------"
+  putStrLn "test_addDef"
+  runTestTT test_addDef
+  putStrLn "prop_isInStore"
+  QC.quickCheck prop_isInStore
+  putStrLn "----------------------- reduce -----------------------"
+  putStrLn "test_reduce"
+  runTestTT test_reduce
+  putStrLn "prop_reduceBeta"
+  QC.quickCheck prop_reduceBeta
+  putStrLn "prop_reduceEta"
+  QC.quickCheck prop_reduceEta
+  putStrLn "prop_reduceBetaEta"
+  QC.quickCheck prop_reduceBetaEta
   putStrLn "nice work ツ"
 
 -- λ x . x
@@ -59,7 +72,7 @@ ex4 = App (Fun "x" (Var "x")) (Var "y")
 
 -- λ x . (3 + 4)
 ex5 :: Exp
-ex5 = Fun "x" (BopE Plus (Int 3) (Int 4))
+ex5 = Fun "x" (BopE Plus (IntE 3) (IntE 4))
 
 -- λ x . (y / z)
 ex6 :: Exp
@@ -68,6 +81,9 @@ ex6 = Fun "x" (BopE Divide (Var "y") (Var "z"))
 -- λ x . ((λ m . m body) x) --> (λ m . m body)
 ex7 :: Exp
 ex7 = Fun "x" (App (Fun "M" (Var "M's Body")) (Var "x"))
+
+exInfinite :: Exp
+exInfinite = App (Fun "x" (App (Var "x") (Var "x"))) (Fun "x" (App (Var "x") (Var "x")))
 
 test_getFreeVars :: Test
 test_getFreeVars =
@@ -84,42 +100,21 @@ test_getFreeVars =
 prop_freeOrArg :: Exp -> Bool
 prop_freeOrArg exp = getVars exp == Set.union (getArgs exp) (getFreeVars exp)
 
--- test_alphaConverter :: Test
--- test_alphaConverter =
---   "alphaConverter tests"
---     ~: TestList
---       [ alphaConverter ex1 ~?= ex1,
---         alphaConverter ex2 ~?= ex2,
---         alphaConverter ex3 ~?= App (Fun "x1" (Var "x1")) (Var "x"),
---         alphaConverter ex4 ~?= ex4,
---         alphaConverter ex5 ~?= ex5,
---         alphaConverter ex6 ~?= ex6
---       ]
-
--- prop_freeVarsRemainFree :: Exp -> Bool
--- prop_freeVarsRemainFree exp = getFreeVars exp == getFreeVars (alphaConverter exp)
-
--- prop_argsAndFreeVarsDisjoint :: Exp -> Bool
--- prop_argsAndFreeVarsDisjoint exp = Set.disjoint (getArgs exp) (getFreeVars exp)
-
--- prop_alphaConverter :: Exp -> Bool
--- prop_alphaConverter exp = alphaConverter exp == alphaConverter (alphaConverter exp)
-
 test_substitute :: Test
 test_substitute =
   "substitute tests"
     ~: TestList
-      [ evalSubstitute "x" (Int 1) ex1 initialStore ~?= ex1,
-        evalSubstitute "y" (Bool False) ex1 initialStore ~?= ex1,
-        evalSubstitute "f" (Int 0) ex2 initialStore ~?= ex2,
-        evalSubstitute "t" (Bool True) ex2 initialStore ~?= ex2,
-        evalSubstitute "x" (Int 6) ex3 initialStore ~?= App (Fun "x" (Var "x")) (Int 6),
-        evalSubstitute "y" (Int 5) ex4 initialStore ~?= App (Fun "x" (Var "x")) (Int 5),
-        evalSubstitute "x" (Bool False) ex4 initialStore ~?= ex4,
-        evalSubstitute "y" (Int 2) ex5 initialStore ~?= ex5,
-        evalSubstitute "x" (Bool False) ex5 initialStore ~?= Fun "x" (BopE Plus (Int 3) (Int 4)),
+      [ evalSubstitute "x" (IntE 1) ex1 initialStore ~?= ex1,
+        evalSubstitute "y" (BoolE False) ex1 initialStore ~?= ex1,
+        evalSubstitute "f" (IntE 0) ex2 initialStore ~?= ex2,
+        evalSubstitute "t" (BoolE True) ex2 initialStore ~?= ex2,
+        evalSubstitute "x" (IntE 6) ex3 initialStore ~?= App (Fun "x" (Var "x")) (IntE 6),
+        evalSubstitute "y" (IntE 5) ex4 initialStore ~?= App (Fun "x" (Var "x")) (IntE 5),
+        evalSubstitute "x" (BoolE False) ex4 initialStore ~?= ex4,
+        evalSubstitute "y" (IntE 2) ex5 initialStore ~?= ex5,
+        evalSubstitute "x" (BoolE False) ex5 initialStore ~?= Fun "x" (BopE Plus (IntE 3) (IntE 4)),
         evalSubstitute "y" (Var "x") ex6 initialStore ~?= Fun "x1" (BopE Divide (Var "x") (Var "z")),
-        evalSubstitute "z" (Bool True) ex6 initialStore ~?= Fun "x" (BopE Divide (Var "y") (Bool True))
+        evalSubstitute "z" (BoolE True) ex6 initialStore ~?= Fun "x" (BopE Divide (Var "y") (BoolE True))
       ]
 
 prop_substituteAllButArgs :: Var -> Exp -> Exp -> Bool
@@ -138,19 +133,26 @@ test_betaReduce =
         evalBetaReduce ex2 initialStore ~?= ex2,
         evalBetaReduce ex3 initialStore ~?= Var "x",
         evalBetaReduce ex4 initialStore ~?= Var "y",
-        evalBetaReduce ex5 initialStore ~?= Fun "x" (Int 7),
-        evalBetaReduce (App ex5 (Var "y")) initialStore ~?= Int 7,
+        evalBetaReduce ex5 initialStore ~?= Fun "x" (IntE 7),
+        evalBetaReduce (App ex5 (Var "y")) initialStore ~?= IntE 7,
         evalBetaReduce ex6 initialStore ~?= ex6,
-        evalBetaReduce (App ex6 (Int 1)) initialStore ~?= BopE Divide (Var "y") (Var "z")
+        evalBetaReduce (App ex6 (IntE 1)) initialStore ~?= BopE Divide (Var "y") (Var "z"),
+        evalBetaReduce ex7 initialStore ~?= Fun "x" (Var "M's Body")
       ]
 
-prop_noApps :: Exp -> Bool
-prop_noApps exp = case exp of
-  Fun _ e -> prop_noApps e
-  App e1 e2 -> False
-  BopE _ e1 e2 -> prop_noApps e1 && prop_noApps e2
-  UopE _ e -> prop_noApps e
+prop_betaNoRedux :: Exp -> Bool
+prop_betaNoRedux exp = case evalBetaReduce exp initialStore of
+  Fun _ e -> prop_betaNoRedux e
+  App (Fun _ _) e2 -> False
+  BopE _ e1 e2 -> prop_betaNoRedux e1 && prop_betaNoRedux e2
+  UopE _ e -> prop_betaNoRedux e
   _ -> True
+
+prop_betaReduceTwice :: Exp -> Bool
+prop_betaReduceTwice exp = evalBetaReduce exp initialStore == evalBetaReduce (evalBetaReduce exp initialStore) initialStore
+
+prop_betaFreeWasFree :: Exp -> Bool
+prop_betaFreeWasFree exp = getFreeVars (evalBetaReduce exp initialStore) `Set.isSubsetOf` getFreeVars exp
 
 test_etaReduce :: Test
 test_etaReduce =
@@ -166,39 +168,67 @@ test_etaReduce =
         etaReduce ex7 ~?= Fun "M" (Var "M's Body")
       ]
 
-prop_etaCorrect :: Exp -> Bool
-prop_etaCorrect exp = evalBetaReduce exp initialStore == evalBetaReduce (etaReduce exp) initialStore
+prop_etaReduceTwice :: Exp -> Bool
+prop_etaReduceTwice exp = etaReduce exp == etaReduce (etaReduce exp)
 
-instance Arbitrary Uop where
-  arbitrary = QC.arbitraryBoundedEnum
+prop_etaFreeWasFree :: Exp -> Bool
+prop_etaFreeWasFree exp = getFreeVars (etaReduce exp) `Set.isSubsetOf` getFreeVars exp
 
-instance Arbitrary Bop where
-  arbitrary = QC.arbitraryBoundedEnum
+initialStore' :: Store
+initialStore' = (0, Map.fromList [("x", IntE 7), ("y", IntE 3), ("z", IntE 1), ("M's Body", IntE 3)])
 
-instance Arbitrary Exp where
-  arbitrary = undefined
-  shrink = undefined
+test_addDef :: Test
+test_addDef =
+  "addDef tests"
+    ~: TestList
+      [ snd (evalAddDef "v" ex1 initialStore) ~?= Map.singleton "v" ex1,
+        snd (evalAddDef "v" ex2 initialStore) ~?= Map.singleton "v" ex2,
+        snd (evalAddDef "v" ex5 (evalAddDef "u" ex3 (evalAddDef "v" ex4 initialStore')))
+          ~?= Map.union (Map.fromList [("v", Fun "x1" (IntE 7)), ("u", IntE 7)]) (snd initialStore'),
+        snd (evalAddDef "v" ex6 initialStore')
+          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x1" (IntE 3)), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)],
+        snd (evalAddDef "v" ex7 initialStore')
+          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x1" (IntE 3)), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)]
+      ]
 
---   arbitrary = QC.sized genExp
---   shrink (Val v) = Val <$> shrink v
---   shrink (Var v) = Var <$> shrink v
---   shrink (Op1 o e) = e : [Op1 o e' | e' <- shrink e]
---   shrink (Op2 e1 o e2) =
---     [Op2 e1' o e2 | e1' <- shrink e1]
---       ++ [Op2 e1 o e2' | e2' <- shrink e2]
---       ++ [e1, e2]
---   shrink (TableConst fs) = concatMap getExp fs ++ (TableConst <$> shrink fs)
+prop_isInStore :: Var -> Exp -> QC.Property
+prop_isInStore var exp =
+  null (getFreeVars exp)
+    QC.==> let (def, new_store) = evalAddDef var exp initialStore
+            in Map.member var new_store
 
--- -- | Generate a size-controlled expression
--- genExp :: Int -> Gen Expression
--- genExp 0 = QC.oneof [Var <$> genVar 0, Val <$> arbitrary]
--- genExp n =
---   QC.frequency
---     [ (1, Var <$> genVar n),
---       (1, Val <$> arbitrary),
---       (n, Op1 <$> arbitrary <*> genExp n'),
---       (n, Op2 <$> genExp n' <*> arbitrary <*> genExp n'),
---       (n', TableConst <$> genTableFields n')
---     ]
---   where
---     n' = n `div` 2
+test_reduce :: Test
+test_reduce =
+  "reduce tests"
+    ~: TestList
+      [ evalReduce Beta ex1 initialStore ~?= ex1,
+        evalReduce Eta ex1 initialStore ~?= ex1,
+        evalReduce BetaEta ex1 initialStore ~?= ex1,
+        evalReduce Beta ex2 initialStore ~?= ex2,
+        evalReduce Eta ex2 initialStore ~?= ex2,
+        evalReduce BetaEta ex2 initialStore ~?= ex2,
+        evalReduce Beta ex3 initialStore ~?= Var "x",
+        evalReduce Eta ex3 initialStore ~?= ex3,
+        evalReduce BetaEta ex3 initialStore ~?= Var "x",
+        evalReduce Beta ex4 initialStore ~?= Var "y",
+        evalReduce Eta ex4 initialStore ~?= ex4,
+        evalReduce BetaEta ex4 initialStore ~?= Var "y",
+        evalReduce Beta ex5 initialStore ~?= Fun "x" (IntE 7),
+        evalReduce Eta ex5 initialStore ~?= ex5,
+        evalReduce BetaEta ex5 initialStore ~?= Fun "x" (IntE 7),
+        evalReduce Beta ex6 initialStore ~?= ex6,
+        evalReduce Eta ex6 initialStore ~?= ex6,
+        evalReduce BetaEta ex6 initialStore ~?= ex6,
+        evalReduce Beta ex7 initialStore ~?= Fun "x" (Var "M's Body"),
+        evalReduce Eta ex7 initialStore ~?= Fun "M" (Var "M's Body"),
+        evalReduce BetaEta ex7 initialStore ~?= Fun "x" (Var "M's Body")
+      ]
+
+prop_reduceBeta :: Exp -> Bool
+prop_reduceBeta exp = evalReduce Beta exp initialStore == evalBetaReduce exp initialStore
+
+prop_reduceEta :: Exp -> Bool
+prop_reduceEta exp = evalReduce Eta exp initialStore == etaReduce exp
+
+prop_reduceBetaEta :: Exp -> Bool
+prop_reduceBetaEta exp = evalReduce BetaEta exp initialStore == etaReduce (evalBetaReduce exp initialStore)

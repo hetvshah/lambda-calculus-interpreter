@@ -50,7 +50,7 @@ uopP = wsP $ constP "-" Neg <|> constP "not" Not
 bopP :: Parser Bop
 bopP =
   constP "+" Plus
-    <|> constP "-" Minus
+    <|> constP "- " Minus
     <|> constP "*" Times
     <|> constP "//" Divide
     <|> constP "%" Modulo

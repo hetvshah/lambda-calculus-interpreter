@@ -1,11 +1,13 @@
 module LCSyntax where
 
 import Data.Bool qualified as PP
+import Test.QuickCheck (Arbitrary (..), Gen)
+import Test.QuickCheck qualified as QC
 import Text.PrettyPrint (Doc, (<+>))
 import Text.PrettyPrint qualified as PP
 
 lambda :: String
-lambda = "λ"
+lambda = "\\"
 
 type Var = String
 
@@ -47,6 +49,67 @@ level _ = 3 -- comparison operators
 data Statement
   = Assign Var Exp -- x = e
   | Expression Exp -- some expression to evaluate
+  deriving (Eq, Show)
+
+-------------------------------- Arbitrary Definitions --------------------------------
+
+instance Arbitrary Uop where
+  arbitrary = QC.arbitraryBoundedEnum
+
+instance Arbitrary Bop where
+  arbitrary = QC.arbitraryBoundedEnum
+
+-- | Generate a small set of names for generated tests. These names are guaranteed to not include
+-- reserved words
+genVar :: Gen Var
+genVar = QC.elements ["x", "X", "y", "x0", "X0", "xy", "XY", "_x"]
+
+-- | Generate a size-controlled expression
+genExp :: Int -> Gen Exp
+genExp 0 = QC.oneof [Var <$> genVar, IntE <$> arbitrary, BoolE <$> arbitrary]
+genExp n =
+  QC.frequency
+    [ (1, Var <$> genVar),
+      (n, Fun <$> genVar <*> genExp n'),
+      (n, App <$> genExp n' <*> genExp n'),
+      (n, IntE <$> arbitrary),
+      (n, BoolE <$> arbitrary),
+      (n, UopE <$> arbitrary <*> genExp n'),
+      (n, BopE <$> arbitrary <*> genExp n' <*> genExp n')
+    ]
+  where
+    n' = n `div` 2
+
+-- | Generate a size-controlled statement
+genStatement :: Int -> Gen Statement
+genStatement n | n <= 1 = QC.oneof [Assign <$> genVar <*> genExp 0, Expression <$> genExp 0]
+genStatement n =
+  QC.frequency
+    [ (n, Assign <$> genVar <*> genExp n'),
+      (n, Expression <$> genExp n')
+    ]
+  where
+    n' = n `div` 2
+
+instance Arbitrary Exp where
+  arbitrary = QC.sized genExp
+
+  shrink (UopE o e) = e : [UopE o e' | e' <- shrink e]
+  shrink (BopE o e1 e2) =
+    [BopE o e1' e2 | e1' <- shrink e1]
+      ++ [BopE o e1 e2' | e2' <- shrink e2]
+      ++ [e1, e2]
+  shrink (Fun v e) = [Fun v e' | e' <- shrink e]
+  shrink (App e1 e2) =
+    [App e1' e2 | e1' <- shrink e1]
+      ++ [App e1 e2' | e2' <- shrink e2]
+      ++ [e1, e2]
+  shrink _ = []
+
+instance Arbitrary Statement where
+  arbitrary = QC.sized genStatement
+  shrink (Assign v e) = [Assign v e' | e' <- shrink e]
+  shrink (Expression e) = [Expression e' | e' <- shrink e]
 
 -------------------------------- Pretty Printer --------------------------------
 
