@@ -7,10 +7,11 @@ import LCSyntax
     ( Var,
       Exp(..),
       Bop(Plus, Divide),
-      ReductionType(BetaEta, Beta, Eta) )
+      ReductionType(BetaEta, Beta, Eta), 
+      EvaluationType(Name, Need) )
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
-import LCEvaluator (evalEtaReduce)
+import Test.HUnit (Test (..), runTestTT, (~:), (~?=))
 
 main :: IO ()
 main = do
