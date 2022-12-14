@@ -14,7 +14,7 @@ data Settings = Settings
   { store :: E.Store,
     file :: IO.Handle,
     reductionType :: S.ReductionType,
-    callByType :: S.CallByType
+    evaluationType :: S.EvaluationType
   }
 
 initialSettings :: Settings
@@ -23,7 +23,7 @@ initialSettings =
     { store = E.initialStore,
       file = IO.stdin,
       reductionType = S.Beta,
-      callByType = S.Name
+      evaluationType = S.Name
     }
 
 main :: IO ()
@@ -31,7 +31,8 @@ main = do
   IO.hSetBuffering IO.stdin IO.LineBuffering
   putStrLn "\nWelcome to ƛ-Calculus Interpreter!"
   putStrLn "':l filename reductType' to interpret from a file."
-  putStrLn "':t reductType' to specify type of reduction (beta, eta, beta-eta)."
+  putStrLn "':rt reductType' to specify type of reduction (beta, eta, beta-eta)."
+  putStrLn "':ct evalType' to specify type of evaluation (beta, eta, beta-eta)."
   putStrLn "or type in your favorite LC expression 🙃\n"
   mainLoop initialSettings
   where
@@ -44,19 +45,20 @@ main = do
           IO.catchIOError
             ( do
                 x <- IO.openFile fn IO.ReadMode
-                let reductType = if null options then reductionType settings else S.typeToEnum (List.head options)
+                let reductType = if null options then reductionType settings else S.reductionToEnum (List.head options)
                 mainLoop (settings {file = x, reductionType = reductType, store = E.initialStore})
             )
             ( \e -> mainLoop settings
             )
-        Just (":t", [reductType]) -> mainLoop (settings {reductionType = S.typeToEnum reductType})
+        Just (":rt", [reductType]) -> mainLoop (settings {reductionType = S.reductionToEnum reductType})
+        Just (":et", [evalType]) -> mainLoop (settings {evaluationType = S.evaluationToEnum evalType})
         Just _ -> case P.parseLCStat str of
           Right stat -> case stat of
             S.Assign var exp -> do
               let new_store = E.evalAddDef var exp (store settings) -- need to case on rt
               mainLoop (settings {store = new_store})
             S.Expression exp -> do
-              let v = E.evalReduce (reductionType settings) (callByType settings) exp (store settings)
+              let v = E.evalReduce (reductionType settings) (evaluationType settings) exp (store settings)
               -- E.evalBetaReduce exp store -- need to case on rt
               putStrLn (S.pretty v)
               mainLoop settings

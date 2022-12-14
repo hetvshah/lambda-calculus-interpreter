@@ -4,7 +4,10 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import LCEvaluator
 import LCSyntax
-import Test.HUnit
+    ( Var,
+      Exp(..),
+      Bop(Plus, Divide),
+      ReductionType(BetaEta, Beta, Eta) )
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
 import LCEvaluator (evalEtaReduce)

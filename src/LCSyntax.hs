@@ -180,11 +180,17 @@ instance PP Statement where
 
 data ReductionType = Beta | Eta | BetaEta
 
-typeToEnum :: String -> ReductionType
-typeToEnum str = case str of
+reductionToEnum :: String -> ReductionType
+reductionToEnum str = case str of
   "beta" -> Beta
   "eta" -> Eta
   "beta-eta" -> BetaEta
   _ -> error "shouldn't come here"
 
-data CallByType = Name | Need
+data EvaluationType = Name | Need
+
+evaluationToEnum :: String -> EvaluationType
+evaluationToEnum str = case str of
+  "name" -> Name
+  "need" -> Need
+  _ -> error "shouldn't come here"

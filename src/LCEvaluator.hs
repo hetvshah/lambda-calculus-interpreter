@@ -132,7 +132,7 @@ evalUop Not (IntE i) = if i > 0 then IntE 0 else IntE 1
 evalUop Not (BoolE b) = BoolE (not b)
 evalUop o e = UopE o e
 
-reduceVar :: CallByType -> Var -> (CallByType -> Exp -> State Store Exp) -> State Store Exp
+reduceVar :: EvaluationType -> Var -> (EvaluationType -> Exp -> State Store Exp) -> State Store Exp
 reduceVar ct v reduceFun = do 
   (count, def) <- S.get 
   case Map.lookup v def of
@@ -147,7 +147,7 @@ reduceVar ct v reduceFun = do
 
 -- Evaluates/simplies the expression through beta reduction
 -- Substitutes and evaluates
-betaReduce :: CallByType -> Exp -> State Store Exp
+betaReduce :: EvaluationType -> Exp -> State Store Exp
 betaReduce ct exp = case exp of
   Fun v e -> do
     (_, def) <- S.get
@@ -169,12 +169,12 @@ betaReduce ct exp = case exp of
   Var v -> reduceVar ct v betaReduce
   _ -> return exp
 
-evalBetaReduce :: CallByType -> Exp -> Store -> Exp
+evalBetaReduce :: EvaluationType -> Exp -> Store -> Exp
 evalBetaReduce ct exp = S.evalState (betaReduce ct exp)
 
 -- Reduces expressions
 -- \x -> f x ----> f
-etaReduce :: CallByType -> Exp -> State Store Exp
+etaReduce :: EvaluationType -> Exp -> State Store Exp
 etaReduce ct exp = case exp of
   Fun v (App (Fun v' body) (Var x)) ->
     if v == x
@@ -183,7 +183,7 @@ etaReduce ct exp = case exp of
   Var v -> reduceVar ct v etaReduce
   _ -> return exp
 
-evalEtaReduce :: CallByType -> Exp -> Store -> Exp
+evalEtaReduce :: EvaluationType -> Exp -> Store -> Exp
 evalEtaReduce ct exp = S.evalState (etaReduce ct exp)
 
 initialStore :: Store
@@ -233,10 +233,10 @@ evalAddDef v exp = S.execState (addDef v exp)
 -- evalAddDef' :: Var -> Exp -> Store -> Store
 -- evalAddDef' v exp = S.execState (addDef v exp)
 
-reduce :: ReductionType -> CallByType -> Exp -> State Store Exp
+reduce :: ReductionType -> EvaluationType -> Exp -> State Store Exp
 reduce Beta ct exp = betaReduce ct exp
 reduce Eta ct exp = etaReduce ct exp
 reduce BetaEta ct exp = etaReduce ct =<< betaReduce ct exp
 
-evalReduce :: ReductionType -> CallByType -> Exp -> Store -> Exp
+evalReduce :: ReductionType -> EvaluationType -> Exp -> Store -> Exp
 evalReduce rt ct exp = S.evalState (reduce rt ct exp)
