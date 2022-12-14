@@ -186,3 +186,5 @@ typeToEnum str = case str of
   "eta" -> Eta
   "beta-eta" -> BetaEta
   _ -> error "shouldn't come here"
+
+data CallByType = Name | Need
