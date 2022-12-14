@@ -177,21 +177,24 @@ prop_etaReduceTwice exp = etaReduce exp == etaReduce (etaReduce exp)
 prop_etaFreeWasFree :: Exp -> Bool
 prop_etaFreeWasFree exp = getFreeVars (etaReduce exp) `Set.isSubsetOf` getFreeVars exp
 
+notReduced :: Exp -> (Exp, Bool)
+notReduced e = (e, False)
+
 initialStore' :: Store
-initialStore' = (0, Map.fromList [("x", IntE 7), ("y", IntE 3), ("z", IntE 1), ("M's Body", IntE 3)])
+initialStore' = (0, Map.fromList [("x", notReduced $ IntE 7), ("y", notReduced $ IntE 3), ("z", notReduced $ IntE 1), ("M's Body", notReduced $ IntE 3)])
 
 test_addDef :: Test
 test_addDef =
   "addDef tests"
     ~: TestList
-      [ snd (evalAddDef "v" ex1 initialStore) ~?= Map.singleton "v" ex1,
-        snd (evalAddDef "v" ex2 initialStore) ~?= Map.singleton "v" ex2,
+      [ snd (evalAddDef "v" ex1 initialStore) ~?= Map.singleton "v" (notReduced ex1),
+        snd (evalAddDef "v" ex2 initialStore) ~?= Map.singleton "v" (notReduced ex2),
         snd (evalAddDef "v" ex5 (evalAddDef "u" ex3 (evalAddDef "v" ex4 initialStore')))
-          ~?= Map.fromList [("M's Body", IntE 3), ("u", App (Fun "x" (Var "x")) (IntE 7)), ("v", Fun "x" (BopE Plus (IntE 3) (IntE 4))), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)],
+          ~?= Map.fromList [("M's Body", notReduced $ IntE 3), ("u", notReduced $ App (Fun "x" (Var "x")) (IntE 7)), ("v", notReduced $ Fun "x" (BopE Plus (IntE 3) (IntE 4))), ("x", notReduced $ IntE 7), ("y", notReduced $ IntE 3), ("z", notReduced $ IntE 1)],
         snd (evalAddDef "v" ex6 initialStore')
-          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x" (BopE Divide (IntE 3) (IntE 1))), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)],
+          ~?= Map.fromList [("M's Body", notReduced $ IntE 3), ("v", notReduced $ Fun "x" (BopE Divide (IntE 3) (IntE 1))), ("x", notReduced $ IntE 7), ("y", notReduced $ IntE 3), ("z", notReduced $ IntE 1)],
         snd (evalAddDef "v" ex7 initialStore')
-          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x" (App (Fun "M" (IntE 3)) (Var "x"))), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)]
+          ~?= Map.fromList [("M's Body", notReduced $ IntE 3), ("v", notReduced $ Fun "x" (App (Fun "M" (IntE 3)) (Var "x"))), ("x", notReduced $ IntE 7), ("y", notReduced $ IntE 3), ("z", notReduced $ IntE 1)]
       ]
 
 prop_isInStore :: Var -> Exp -> QC.Property

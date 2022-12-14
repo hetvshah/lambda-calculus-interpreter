@@ -14,7 +14,7 @@ import LCSyntax
 
 type Store = (Int, Def)
 
-type Def = Map Var Exp
+type Def = Map Var (Exp, Bool)
 
 -- Gets all variables from an expression
 getVars :: Exp -> Set Var
@@ -99,7 +99,7 @@ whnf exp = case exp of
     (_, def) <- S.get
     case Map.lookup v def of
       Nothing -> return exp
-      Just e -> return e
+      Just (e, reduced) -> return e
   App e1 e2 -> do
     rec_call <- whnf e1
     case rec_call of
@@ -157,7 +157,7 @@ betaReduce exp = case exp of
     (_, def) <- S.get
     case Map.lookup v def of
       Nothing -> return exp
-      Just e -> do betaReduce e
+      Just (e, reduced) -> do betaReduce e
   _ -> return exp
 
 evalBetaReduce :: Exp -> Store -> Exp
@@ -182,13 +182,13 @@ inDef v = do
   (_, def) <- S.get
   return $ Map.member v def
 
-substituteAll :: Set Var -> Map Var Exp -> Exp -> State Store Exp
+substituteAll :: Set Var -> Def -> Exp -> State Store Exp
 substituteAll frees currDefs exp = Set.foldr comb (return exp) frees
   where
     comb :: Var -> State Store Exp -> State Store Exp
     comb free acc = case Map.lookup free currDefs of
       Nothing -> acc
-      Just x -> substitute free x =<< acc
+      Just (e, reduced) -> substitute free e =<< acc
 
 -- Call by name
 addDef :: Var -> Exp -> State Store ()
@@ -199,7 +199,7 @@ addDef var exp = do
     then do
       (amt, currDefs) <- S.get
       exp' <- substituteAll frees currDefs exp
-      S.put (amt, Map.insert var exp' currDefs)
+      S.put (amt, Map.insert var (exp', False) currDefs)
     else error "free var exists in exp but is not defined"
 
 evalAddDef :: Var -> Exp -> Store -> Store
