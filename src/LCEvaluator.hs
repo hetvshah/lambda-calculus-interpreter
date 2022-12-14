@@ -132,54 +132,59 @@ evalUop Not (IntE i) = if i > 0 then IntE 0 else IntE 1
 evalUop Not (BoolE b) = BoolE (not b)
 evalUop o e = UopE o e
 
+reduceVar :: CallByType -> Var -> (CallByType -> Exp -> State Store Exp) -> State Store Exp
+reduceVar ct v reduceFun = do 
+  (count, def) <- S.get 
+  case Map.lookup v def of
+    Nothing -> return (Var v)
+    Just (e, reduced) -> do 
+      case ct of 
+        Name -> reduceFun ct e
+        Need -> if reduced then return e else do 
+          reducedExp <- reduceFun ct e
+          S.put (count, Map.insert v (reducedExp, True) def)
+          return reducedExp
+
 -- Evaluates/simplies the expression through beta reduction
 -- Substitutes and evaluates
-betaReduce :: Exp -> State Store Exp
-betaReduce exp = case exp of
+betaReduce :: CallByType -> Exp -> State Store Exp
+betaReduce ct exp = case exp of
   Fun v e -> do
     (_, def) <- S.get
     case Map.lookup v def of
-      Nothing -> Fun v <$> betaReduce e
+      Nothing -> Fun v <$> betaReduce ct e
       Just _ -> do
         new_var <- getFreshVar v (getFreeVars e)
         new_e <- substitute v (Var new_var) e
-        Fun new_var <$> betaReduce new_e
+        Fun new_var <$> betaReduce ct new_e
   App e1 e2 -> do
     whnf_e1 <- whnf e1
     case whnf_e1 of
       Fun v body -> do
         sub_val <- substitute v e2 body
-        betaReduce sub_val
-      e -> App <$> betaReduce e <*> betaReduce e2
-  BopE o e1 e2 -> evalBop o <$> betaReduce e1 <*> betaReduce e2
-  UopE o e -> evalUop o <$> betaReduce e
-  Var v -> do
-    (_, def) <- S.get
-    case Map.lookup v def of
-      Nothing -> return exp
-      Just (e, reduced) -> do betaReduce e
+        betaReduce ct sub_val
+      e -> App <$> betaReduce ct e <*> betaReduce ct e2
+  BopE o e1 e2 -> evalBop o <$> betaReduce ct e1 <*> betaReduce ct e2
+  UopE o e -> evalUop o <$> betaReduce ct e
+  Var v -> reduceVar ct v betaReduce
   _ -> return exp
 
-evalBetaReduce :: Exp -> Store -> Exp
-evalBetaReduce exp = S.evalState (betaReduce exp)
+evalBetaReduce :: CallByType -> Exp -> Store -> Exp
+evalBetaReduce ct exp = S.evalState (betaReduce ct exp)
 
 -- Reduces expressions
 -- \x -> f x ----> f
-etaReduce :: Exp -> State Store Exp
-etaReduce exp = case exp of
+etaReduce :: CallByType -> Exp -> State Store Exp
+etaReduce ct exp = case exp of
   Fun v (App (Fun v' body) (Var x)) ->
     if v == x
       then if Set.member v (getFreeVars body) then return exp else return $ Fun v' body
       else return exp
-  Var v -> do 
-    (_, def) <- S.get 
-    case Map.lookup v def of 
-      Nothing -> return exp 
-      Just (e, reduced) -> do etaReduce e
+  Var v -> reduceVar ct v etaReduce
   _ -> return exp
 
-evalEtaReduce :: Exp -> Store -> Exp
-evalEtaReduce exp = S.evalState (etaReduce exp)
+evalEtaReduce :: CallByType -> Exp -> Store -> Exp
+evalEtaReduce ct exp = S.evalState (etaReduce ct exp)
 
 initialStore :: Store
 initialStore = (0, Map.empty)
@@ -228,10 +233,10 @@ evalAddDef v exp = S.execState (addDef v exp)
 -- evalAddDef' :: Var -> Exp -> Store -> Store
 -- evalAddDef' v exp = S.execState (addDef v exp)
 
-reduce :: ReductionType -> Exp -> State Store Exp
-reduce Beta exp = betaReduce exp
-reduce Eta exp = etaReduce exp
-reduce BetaEta exp = etaReduce =<< betaReduce exp
+reduce :: ReductionType -> CallByType -> Exp -> State Store Exp
+reduce Beta ct exp = betaReduce ct exp
+reduce Eta ct exp = etaReduce ct exp
+reduce BetaEta ct exp = etaReduce ct =<< betaReduce ct exp
 
-evalReduce :: ReductionType -> Exp -> Store -> Exp
-evalReduce rt exp = S.evalState (reduce rt exp)
+evalReduce :: ReductionType -> CallByType -> Exp -> Store -> Exp
+evalReduce rt ct exp = S.evalState (reduce rt ct exp)

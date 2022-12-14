@@ -133,19 +133,19 @@ test_betaReduce :: Test
 test_betaReduce =
   "betaReduce tests"
     ~: TestList
-      [ evalBetaReduce ex1 initialStore ~?= ex1,
-        evalBetaReduce ex2 initialStore ~?= ex2,
-        evalBetaReduce ex3 initialStore ~?= Var "x",
-        evalBetaReduce ex4 initialStore ~?= Var "y",
-        evalBetaReduce ex5 initialStore ~?= Fun "x" (IntE 7),
-        evalBetaReduce (App ex5 (Var "y")) initialStore ~?= IntE 7,
-        evalBetaReduce ex6 initialStore ~?= ex6,
-        evalBetaReduce (App ex6 (IntE 1)) initialStore ~?= BopE Divide (Var "y") (Var "z"),
-        evalBetaReduce ex7 initialStore ~?= Fun "x" (Var "M's Body")
+      [ evalBetaReduce Name ex1 initialStore ~?= ex1,
+        evalBetaReduce Name ex2 initialStore ~?= ex2,
+        evalBetaReduce Name ex3 initialStore ~?= Var "x",
+        evalBetaReduce Name ex4 initialStore ~?= Var "y",
+        evalBetaReduce Name ex5 initialStore ~?= Fun "x" (IntE 7),
+        evalBetaReduce Name (App ex5 (Var "y")) initialStore ~?= IntE 7,
+        evalBetaReduce Name ex6 initialStore ~?= ex6,
+        evalBetaReduce Name (App ex6 (IntE 1)) initialStore ~?= BopE Divide (Var "y") (Var "z"),
+        evalBetaReduce Name ex7 initialStore ~?= Fun "x" (Var "M's Body")
       ]
 
 prop_betaNoRedux :: Exp -> Bool
-prop_betaNoRedux exp = case evalBetaReduce exp initialStore of
+prop_betaNoRedux exp = case evalBetaReduce Name exp initialStore of
   Fun _ e -> prop_betaNoRedux e
   App (Fun _ _) e2 -> False
   BopE _ e1 e2 -> prop_betaNoRedux e1 && prop_betaNoRedux e2
@@ -153,30 +153,30 @@ prop_betaNoRedux exp = case evalBetaReduce exp initialStore of
   _ -> True
 
 prop_betaReduceTwice :: Exp -> Bool
-prop_betaReduceTwice exp = evalBetaReduce exp initialStore == evalBetaReduce (evalBetaReduce exp initialStore) initialStore
+prop_betaReduceTwice exp = evalBetaReduce Name exp initialStore == evalBetaReduce Name (evalBetaReduce Name exp initialStore) initialStore
 
 prop_betaFreeWasFree :: Exp -> Bool
-prop_betaFreeWasFree exp = getFreeVars (evalBetaReduce exp initialStore) `Set.isSubsetOf` getFreeVars exp
+prop_betaFreeWasFree exp = getFreeVars (evalBetaReduce Name exp initialStore) `Set.isSubsetOf` getFreeVars exp
 
 test_etaReduce :: Test
 test_etaReduce =
   "etaReduce tests"
     ~: TestList
-      [ evalEtaReduce ex1 initialStore ~?= ex1,
-        evalEtaReduce ex2 initialStore ~?= ex2,
-        evalEtaReduce ex3 initialStore ~?= ex3,
-        evalEtaReduce ex4 initialStore ~?= ex4,
-        evalEtaReduce ex5 initialStore ~?= ex5,
-        evalEtaReduce (App ex5 (Var "y")) initialStore ~?= App ex5 (Var "y"),
-        evalEtaReduce ex6 initialStore ~?= ex6,
-        evalEtaReduce ex7 initialStore ~?= Fun "M" (Var "M's Body")
+      [ evalEtaReduce Name ex1 initialStore ~?= ex1,
+        evalEtaReduce Name ex2 initialStore ~?= ex2,
+        evalEtaReduce Name ex3 initialStore ~?= ex3,
+        evalEtaReduce Name ex4 initialStore ~?= ex4,
+        evalEtaReduce Name ex5 initialStore ~?= ex5,
+        evalEtaReduce Name (App ex5 (Var "y")) initialStore ~?= App ex5 (Var "y"),
+        evalEtaReduce Name ex6 initialStore ~?= ex6,
+        evalEtaReduce Name ex7 initialStore ~?= Fun "M" (Var "M's Body")
       ]
 
 prop_etaReduceTwice :: Exp -> Bool
-prop_etaReduceTwice exp = evalEtaReduce exp initialStore == evalEtaReduce (evalEtaReduce exp initialStore) initialStore
+prop_etaReduceTwice exp = evalEtaReduce Name exp initialStore == evalEtaReduce Name (evalEtaReduce Name exp initialStore) initialStore
 
 prop_etaFreeWasFree :: Exp -> Bool
-prop_etaFreeWasFree exp = getFreeVars (evalEtaReduce exp initialStore) `Set.isSubsetOf` getFreeVars exp
+prop_etaFreeWasFree exp = getFreeVars (evalEtaReduce Name exp initialStore) `Set.isSubsetOf` getFreeVars exp
 
 notReduced :: Exp -> (Exp, Bool)
 notReduced e = (e, False)
@@ -208,37 +208,37 @@ test_reduce :: Test
 test_reduce =
   "reduce tests"
     ~: TestList
-      [ evalReduce Beta ex1 initialStore ~?= ex1,
-        evalReduce Eta ex1 initialStore ~?= ex1,
-        evalReduce BetaEta ex1 initialStore ~?= ex1,
-        evalReduce Beta ex2 initialStore ~?= ex2,
-        evalReduce Eta ex2 initialStore ~?= ex2,
-        evalReduce BetaEta ex2 initialStore ~?= ex2,
-        evalReduce Beta ex3 initialStore ~?= Var "x",
-        evalReduce Eta ex3 initialStore ~?= ex3,
-        evalReduce BetaEta ex3 initialStore ~?= Var "x",
-        evalReduce Beta ex4 initialStore ~?= Var "y",
-        evalReduce Eta ex4 initialStore ~?= ex4,
-        evalReduce BetaEta ex4 initialStore ~?= Var "y",
-        evalReduce Beta ex5 initialStore ~?= Fun "x" (IntE 7),
-        evalReduce Eta ex5 initialStore ~?= ex5,
-        evalReduce BetaEta ex5 initialStore ~?= Fun "x" (IntE 7),
-        evalReduce Beta ex6 initialStore ~?= ex6,
-        evalReduce Eta ex6 initialStore ~?= ex6,
-        evalReduce BetaEta ex6 initialStore ~?= ex6,
-        evalReduce Beta ex7 initialStore ~?= Fun "x" (Var "M's Body"),
-        evalReduce Eta ex7 initialStore ~?= Fun "M" (Var "M's Body"),
-        evalReduce BetaEta ex7 initialStore ~?= Fun "x" (Var "M's Body")
+      [ evalReduce Beta Name ex1 initialStore ~?= ex1,
+        evalReduce Eta Name ex1 initialStore ~?= ex1,
+        evalReduce BetaEta Name ex1 initialStore ~?= ex1,
+        evalReduce Beta Name ex2 initialStore ~?= ex2,
+        evalReduce Eta Name ex2 initialStore ~?= ex2,
+        evalReduce BetaEta Name ex2 initialStore ~?= ex2,
+        evalReduce Beta Name ex3 initialStore ~?= Var "x",
+        evalReduce Eta Name ex3 initialStore ~?= ex3,
+        evalReduce BetaEta Name ex3 initialStore ~?= Var "x",
+        evalReduce Beta Name ex4 initialStore ~?= Var "y",
+        evalReduce Eta Name ex4 initialStore ~?= ex4,
+        evalReduce BetaEta Name ex4 initialStore ~?= Var "y",
+        evalReduce Beta Name ex5 initialStore ~?= Fun "x" (IntE 7),
+        evalReduce Eta Name ex5 initialStore ~?= ex5,
+        evalReduce BetaEta Name ex5 initialStore ~?= Fun "x" (IntE 7),
+        evalReduce Beta Name ex6 initialStore ~?= ex6,
+        evalReduce Eta Name ex6 initialStore ~?= ex6,
+        evalReduce BetaEta Name ex6 initialStore ~?= ex6,
+        evalReduce Beta Name ex7 initialStore ~?= Fun "x" (Var "M's Body"),
+        evalReduce Eta Name ex7 initialStore ~?= Fun "M" (Var "M's Body"),
+        evalReduce BetaEta Name ex7 initialStore ~?= Fun "x" (Var "M's Body")
       ]
 
 prop_reduceBeta :: Exp -> Bool
-prop_reduceBeta exp = evalReduce Beta exp initialStore == evalBetaReduce exp initialStore
+prop_reduceBeta exp = evalReduce Beta Name exp initialStore == evalBetaReduce Name exp initialStore
 
 prop_reduceEta :: Exp -> Bool
-prop_reduceEta exp = evalReduce Eta exp initialStore == evalEtaReduce exp initialStore
+prop_reduceEta exp = evalReduce Eta Name exp initialStore == evalEtaReduce Name exp initialStore
 
 prop_reduceBetaEta :: Exp -> Bool
-prop_reduceBetaEta exp = evalReduce BetaEta exp initialStore == evalEtaReduce (evalBetaReduce exp initialStore) initialStore
+prop_reduceBetaEta exp = evalReduce BetaEta Name exp initialStore == evalEtaReduce Name (evalBetaReduce Name exp initialStore) initialStore
 
 -- (λ y . (λ x. x y)) (λ z . x)
 capAv1 :: Exp
@@ -284,9 +284,9 @@ test_avoidCapture :: Test
 test_avoidCapture =
   "avoid capture tests"
     ~: TestList
-      [ evalBetaReduce capAv1 initialStore ~?= capAv1Expected,
-        evalBetaReduce capAv2 initialStore ~?= capAv2Expected,
-        evalBetaReduce capAv3 initialStore ~?= capAv3Expected,
+      [ evalBetaReduce Name capAv1 initialStore ~?= capAv1Expected,
+        evalBetaReduce Name capAv2 initialStore ~?= capAv2Expected,
+        evalBetaReduce Name capAv3 initialStore ~?= capAv3Expected,
         evalSubstitute "x" (Var "y") capAv4 initialStore ~?= capAv4Expected,
         evalSubstitute "x" (Fun "y" (BopE Plus (Var "w") (Var "z"))) capAv5 initialStore ~?= capAv5Expected
       ]
