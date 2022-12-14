@@ -45,7 +45,7 @@ boolP :: Parser Exp
 boolP = constP "true" (BoolE True) <|> constP "false" (BoolE False)
 
 uopP :: Parser Uop
-uopP = wsP $ constP "-" Neg <|> constP "not" Not
+uopP = wsP $ constP "~" Neg <|> constP "not" Not
 
 bopP :: Parser Bop
 bopP =

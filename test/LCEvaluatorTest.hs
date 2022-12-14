@@ -52,6 +52,9 @@ main = do
   QC.quickCheck prop_reduceEta
   putStrLn "prop_reduceBetaEta"
   QC.quickCheck prop_reduceBetaEta
+  putStrLn "----------------------- avoidCapture -----------------------"
+  putStrLn "test_avoidCapture"
+  runTestTT test_avoidCapture
   putStrLn "nice work ツ"
 
 -- λ x . x
@@ -184,11 +187,11 @@ test_addDef =
       [ snd (evalAddDef "v" ex1 initialStore) ~?= Map.singleton "v" ex1,
         snd (evalAddDef "v" ex2 initialStore) ~?= Map.singleton "v" ex2,
         snd (evalAddDef "v" ex5 (evalAddDef "u" ex3 (evalAddDef "v" ex4 initialStore')))
-          ~?= Map.union (Map.fromList [("v", Fun "x1" (IntE 7)), ("u", IntE 7)]) (snd initialStore'),
+          ~?= Map.fromList [("M's Body", IntE 3), ("u", App (Fun "x" (Var "x")) (IntE 7)), ("v", Fun "x" (BopE Plus (IntE 3) (IntE 4))), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)],
         snd (evalAddDef "v" ex6 initialStore')
-          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x1" (IntE 3)), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)],
+          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x" (BopE Divide (IntE 3) (IntE 1))), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)],
         snd (evalAddDef "v" ex7 initialStore')
-          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x1" (IntE 3)), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)]
+          ~?= Map.fromList [("M's Body", IntE 3), ("v", Fun "x" (App (Fun "M" (IntE 3)) (Var "x"))), ("x", IntE 7), ("y", IntE 3), ("z", IntE 1)]
       ]
 
 prop_isInStore :: Var -> Exp -> QC.Property
@@ -232,3 +235,54 @@ prop_reduceEta exp = evalReduce Eta exp initialStore == etaReduce exp
 
 prop_reduceBetaEta :: Exp -> Bool
 prop_reduceBetaEta exp = evalReduce BetaEta exp initialStore == etaReduce (evalBetaReduce exp initialStore)
+
+-- (λ y . (λ x. x y)) (λ z . x)
+capAv1 :: Exp
+capAv1 = App (Fun "y" (Fun "x" (App (Var "x") (Var "y")))) (Fun "z" (Var "x"))
+
+-- λ x1. x1 (λ z . x)
+capAv1Expected :: Exp
+capAv1Expected = Fun "x1" (App (Var "x1") (Fun "z" (Var "x")))
+
+-- (λ x. (λ y. x)) y
+capAv2 :: Exp
+capAv2 = App (Fun "x" (Fun "y" (Var "x"))) (Var "y")
+
+-- (λ y1. y)
+capAv2Expected :: Exp
+capAv2Expected = Fun "y1" (Var "y")
+
+-- (λ f. (λ x. f (f x))) (λ y. y + x)
+capAv3 :: Exp
+capAv3 = App (Fun "f" (Fun "x" (App (Var "f") (App (Var "f") (Var "x"))))) (Fun "y" (BopE Plus (Var "y") (Var "x")))
+
+-- (λ x1. x1 + x + x)
+capAv3Expected :: Exp
+capAv3Expected = Fun "x1" (BopE Plus (BopE Plus (Var "x1") (Var "x")) (Var "x"))
+
+-- ((λ y. x) (λ x. x)) x) [y/x]
+capAv4 :: Exp
+capAv4 = App (App (Fun "y" (Var "x")) (Fun "x" (Var "x"))) (Var "x")
+
+-- (λ y1. y) (λ x. x)) y
+capAv4Expected :: Exp
+capAv4Expected = App (App (Fun "y1" (Var "y")) (Fun "x" (Var "x"))) (Var "y")
+
+-- λ y . (λ z . λ w . x + y + z + w)
+capAv5 :: Exp
+capAv5 = Fun "y" (Fun "z" (Fun "w" (BopE Plus (BopE Plus (BopE Plus (Var "x") (Var "y")) (Var "z")) (Var "w"))))
+
+-- λ y . (λ z1 . λ w2 . (λ y . w + z) + y + z1 + w2)
+capAv5Expected :: Exp
+capAv5Expected = Fun "y" (Fun "z1" (Fun "w2" (BopE Plus (BopE Plus (BopE Plus (Fun "y" (BopE Plus (Var "w") (Var "z"))) (Var "y")) (Var "z1")) (Var "w2"))))
+
+test_avoidCapture :: Test
+test_avoidCapture =
+  "avoid capture tests"
+    ~: TestList
+      [ evalBetaReduce capAv1 initialStore ~?= capAv1Expected,
+        evalBetaReduce capAv2 initialStore ~?= capAv2Expected,
+        evalBetaReduce capAv3 initialStore ~?= capAv3Expected,
+        evalSubstitute "x" (Var "y") capAv4 initialStore ~?= capAv4Expected,
+        evalSubstitute "x" (Fun "y" (BopE Plus (Var "w") (Var "z"))) capAv5 initialStore ~?= capAv5Expected
+      ]

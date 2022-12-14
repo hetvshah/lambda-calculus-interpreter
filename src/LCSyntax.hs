@@ -158,7 +158,7 @@ instance PP Exp where
 
 instance PP Uop where
   pp :: Uop -> Doc
-  pp Neg = PP.char '-'
+  pp Neg = PP.char '~'
   pp Not = PP.text "not"
 
 instance PP Bop where

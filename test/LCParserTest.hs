@@ -28,10 +28,6 @@ main = do
   runTestTT test_bopP
   putStrLn "nice work ツ"
 
--- e = UopE Neg (IntE 1)
--- P.parse fullExpP (pretty e)
--- Right e
-
 prop_roundtrip_exp :: Exp -> Bool
 prop_roundtrip_exp e = P.parse fullExpP (pretty e) == Right e
 
@@ -72,11 +68,11 @@ test_boolP =
 test_uopP =
   "parsing uops"
     ~: TestList
-      [ P.parse uopP "-   " ~?= Right Neg,
+      [ P.parse uopP "~   " ~?= Right Neg,
         P.parse uopP "not    " ~?= Right Not,
         P.parse uopP "not -   " ~?= Right Not,
-        P.parse (many uopP) "- \n not -" ~?= Right [Neg, Not, Neg],
-        P.parse (many uopP) "- - -" ~?= Right [Neg, Neg, Neg]
+        P.parse (many uopP) "~ \n not ~" ~?= Right [Neg, Not, Neg],
+        P.parse (many uopP) "~ ~ ~" ~?= Right [Neg, Neg, Neg]
       ]
 
 test_bopP =
@@ -86,5 +82,5 @@ test_bopP =
         P.parse bopP ">    " ~?= Right Gt,
         P.parse bopP ">   / " ~?= Right Gt,
         P.parse (some bopP) "1 2\n 3" ~?= Left "No parses",
-        P.parse (many bopP) "<= +\n -" ~?= Right [Le, Plus, Minus]
+        P.parse (many bopP) "<= +\n - " ~?= Right [Le, Plus, Minus]
       ]

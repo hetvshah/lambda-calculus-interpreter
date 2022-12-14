@@ -3,6 +3,7 @@ module LCEvaluator where
 import Control.Monad (join, unless, when, (>=>))
 import Control.Monad.State (State)
 import Control.Monad.State qualified as S
+import Data.Bifunctor (second)
 import Data.List qualified as List
 import Data.Map (Map, (!?))
 import Data.Map qualified as Map
@@ -156,7 +157,7 @@ betaReduce exp = case exp of
     (_, def) <- S.get
     case Map.lookup v def of
       Nothing -> return exp
-      Just e -> return e
+      Just e -> do betaReduce e
   _ -> return exp
 
 evalBetaReduce :: Exp -> Store -> Exp
@@ -181,6 +182,15 @@ inDef v = do
   (_, def) <- S.get
   return $ Map.member v def
 
+substituteAll :: Set Var -> Map Var Exp -> Exp -> State Store Exp
+substituteAll frees currDefs exp = Set.foldr comb (return exp) frees
+  where
+    comb :: Var -> State Store Exp -> State Store Exp
+    comb free acc = case Map.lookup free currDefs of
+      Nothing -> acc
+      Just x -> substitute free x =<< acc
+
+-- Call by name
 addDef :: Var -> Exp -> State Store ()
 addDef var exp = do
   let frees = getFreeVars exp
@@ -188,12 +198,27 @@ addDef var exp = do
   if freesInDef
     then do
       (amt, currDefs) <- S.get
-      exp' <- betaReduce exp
+      exp' <- substituteAll frees currDefs exp
       S.put (amt, Map.insert var exp' currDefs)
     else error "free var exists in exp but is not defined"
 
 evalAddDef :: Var -> Exp -> Store -> Store
 evalAddDef v exp = S.execState (addDef v exp)
+
+-- -- Call by need --> evaluate as needed
+-- addDef' :: Var -> Exp -> State Store ()
+-- addDef' var exp = do
+--   let frees = getFreeVars exp
+--   freesInDef <- List.foldr (\v acc -> inDef v >>= \b -> acc >>= \a -> return (b && a)) (return True) frees
+--   if freesInDef
+--     then do
+--       (amt, currDefs) <- S.get
+--       exp' <- substituteAll frees currDefs exp
+--       S.put (amt, Map.insert var exp' currDefs)
+--     else error "free var exists in exp but is not defined"
+
+-- evalAddDef' :: Var -> Exp -> Store -> Store
+-- evalAddDef' v exp = S.execState (addDef v exp)
 
 reduce :: ReductionType -> Exp -> State Store Exp
 reduce Beta exp = betaReduce exp
