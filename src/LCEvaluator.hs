@@ -165,13 +165,21 @@ evalBetaReduce exp = S.evalState (betaReduce exp)
 
 -- Reduces expressions
 -- \x -> f x ----> f
-etaReduce :: Exp -> Exp
+etaReduce :: Exp -> State Store Exp
 etaReduce exp = case exp of
   Fun v (App (Fun v' body) (Var x)) ->
     if v == x
-      then if Set.member v (getFreeVars body) then exp else Fun v' body
-      else exp
-  _ -> exp
+      then if Set.member v (getFreeVars body) then return exp else return $ Fun v' body
+      else return exp
+  Var v -> do 
+    (_, def) <- S.get 
+    case Map.lookup v def of 
+      Nothing -> return exp 
+      Just (e, reduced) -> do etaReduce e
+  _ -> return exp
+
+evalEtaReduce :: Exp -> Store -> Exp
+evalEtaReduce exp = S.evalState (etaReduce exp)
 
 initialStore :: Store
 initialStore = (0, Map.empty)
@@ -222,8 +230,8 @@ evalAddDef v exp = S.execState (addDef v exp)
 
 reduce :: ReductionType -> Exp -> State Store Exp
 reduce Beta exp = betaReduce exp
-reduce Eta exp = return $ etaReduce exp
-reduce BetaEta exp = betaReduce exp >>= \e -> return $ etaReduce e
+reduce Eta exp = etaReduce exp
+reduce BetaEta exp = etaReduce =<< betaReduce exp
 
 evalReduce :: ReductionType -> Exp -> Store -> Exp
 evalReduce rt exp = S.evalState (reduce rt exp)

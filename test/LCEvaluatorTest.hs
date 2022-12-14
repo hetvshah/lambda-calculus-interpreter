@@ -7,6 +7,7 @@ import LCSyntax
 import Test.HUnit
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
+import LCEvaluator (evalEtaReduce)
 
 main :: IO ()
 main = do
@@ -161,21 +162,21 @@ test_etaReduce :: Test
 test_etaReduce =
   "etaReduce tests"
     ~: TestList
-      [ etaReduce ex1 ~?= ex1,
-        etaReduce ex2 ~?= ex2,
-        etaReduce ex3 ~?= ex3,
-        etaReduce ex4 ~?= ex4,
-        etaReduce ex5 ~?= ex5,
-        etaReduce (App ex5 (Var "y")) ~?= App ex5 (Var "y"),
-        etaReduce ex6 ~?= ex6,
-        etaReduce ex7 ~?= Fun "M" (Var "M's Body")
+      [ evalEtaReduce ex1 initialStore ~?= ex1,
+        evalEtaReduce ex2 initialStore ~?= ex2,
+        evalEtaReduce ex3 initialStore ~?= ex3,
+        evalEtaReduce ex4 initialStore ~?= ex4,
+        evalEtaReduce ex5 initialStore ~?= ex5,
+        evalEtaReduce (App ex5 (Var "y")) initialStore ~?= App ex5 (Var "y"),
+        evalEtaReduce ex6 initialStore ~?= ex6,
+        evalEtaReduce ex7 initialStore ~?= Fun "M" (Var "M's Body")
       ]
 
 prop_etaReduceTwice :: Exp -> Bool
-prop_etaReduceTwice exp = etaReduce exp == etaReduce (etaReduce exp)
+prop_etaReduceTwice exp = evalEtaReduce exp initialStore == evalEtaReduce (evalEtaReduce exp initialStore) initialStore
 
 prop_etaFreeWasFree :: Exp -> Bool
-prop_etaFreeWasFree exp = getFreeVars (etaReduce exp) `Set.isSubsetOf` getFreeVars exp
+prop_etaFreeWasFree exp = getFreeVars (evalEtaReduce exp initialStore) `Set.isSubsetOf` getFreeVars exp
 
 notReduced :: Exp -> (Exp, Bool)
 notReduced e = (e, False)
@@ -234,10 +235,10 @@ prop_reduceBeta :: Exp -> Bool
 prop_reduceBeta exp = evalReduce Beta exp initialStore == evalBetaReduce exp initialStore
 
 prop_reduceEta :: Exp -> Bool
-prop_reduceEta exp = evalReduce Eta exp initialStore == etaReduce exp
+prop_reduceEta exp = evalReduce Eta exp initialStore == evalEtaReduce exp initialStore
 
 prop_reduceBetaEta :: Exp -> Bool
-prop_reduceBetaEta exp = evalReduce BetaEta exp initialStore == etaReduce (evalBetaReduce exp initialStore)
+prop_reduceBetaEta exp = evalReduce BetaEta exp initialStore == evalEtaReduce (evalBetaReduce exp initialStore) initialStore
 
 -- (λ y . (λ x. x y)) (λ z . x)
 capAv1 :: Exp
