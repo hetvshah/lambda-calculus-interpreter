@@ -40,11 +40,12 @@ main = do
       when (file settings == IO.stdin) $ putStr "--> "
       str <- IO.hGetLine (file settings)
       case List.uncons (words str) of
-        Just (":l", [fn, reductType]) ->
+        Just (":l", fn : options) ->
           IO.catchIOError
             ( do
                 x <- IO.openFile fn IO.ReadMode
-                mainLoop (settings {file = x, reductionType = S.typeToEnum reductType, store = E.initialStore})
+                let reductType = if null options then reductionType settings else S.typeToEnum (List.head options)
+                mainLoop (settings {file = x, reductionType = reductType, store = E.initialStore})
             )
             ( \e -> mainLoop settings
             )
