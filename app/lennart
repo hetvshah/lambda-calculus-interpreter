@@ -21,9 +21,8 @@ n3 = add one two
 n5 = add two three
 n6 = add three three
 n17 = add n6 (add n6 n5)
-n17
 n37 = Succ (mul n6 n6)
 n703 = sumto n37
 n720 = fac n6
-eqnat one one
+eqnat n3 n5
 eqnat n720 (add n703 n17)

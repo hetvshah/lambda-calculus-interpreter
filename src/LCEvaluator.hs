@@ -99,11 +99,10 @@ whnf exp = case exp of
     (_, def) <- S.get
     case Map.lookup v def of
       Nothing -> return exp
-      Just (e, reduced) -> return e
+      Just (e, _) -> whnf e
   App e1 e2 -> do
     rec_call <- whnf e1
     case rec_call of
-      Var v -> return $ App (Var v) e2
       Fun v e -> do
         m <- substitute v e2 e
         whnf m
@@ -161,13 +160,16 @@ betaReduce ct exp = case exp of
     whnf_e1 <- whnf e1
     case whnf_e1 of
       Fun v body -> do
-        sub_val <- substitute v e2 body
+        sub_val <- substitute v e2 body -- call by name
         betaReduce ct sub_val
       e -> App <$> betaReduce ct e <*> betaReduce ct e2
   BopE o e1 e2 -> evalBop o <$> betaReduce ct e1 <*> betaReduce ct e2
   UopE o e -> evalUop o <$> betaReduce ct e
   Var v -> reduceVar ct v betaReduce
   _ -> return exp
+
+evalWhnf :: Exp -> Store -> Exp 
+evalWhnf exp = S.evalState (whnf exp)
 
 evalBetaReduce :: EvaluationType -> Exp -> Store -> Exp
 evalBetaReduce ct exp = S.evalState (betaReduce ct exp)
@@ -217,21 +219,6 @@ addDef var exp = do
 
 evalAddDef :: Var -> Exp -> Store -> Store
 evalAddDef v exp = S.execState (addDef v exp)
-
--- -- Call by need --> evaluate as needed
--- addDef' :: Var -> Exp -> State Store ()
--- addDef' var exp = do
---   let frees = getFreeVars exp
---   freesInDef <- List.foldr (\v acc -> inDef v >>= \b -> acc >>= \a -> return (b && a)) (return True) frees
---   if freesInDef
---     then do
---       (amt, currDefs) <- S.get
---       exp' <- substituteAll frees currDefs exp
---       S.put (amt, Map.insert var exp' currDefs)
---     else error "free var exists in exp but is not defined"
-
--- evalAddDef' :: Var -> Exp -> Store -> Store
--- evalAddDef' v exp = S.execState (addDef v exp)
 
 reduce :: ReductionType -> EvaluationType -> Exp -> State Store Exp
 reduce Beta ct exp = betaReduce ct exp
