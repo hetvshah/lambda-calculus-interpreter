@@ -5,7 +5,6 @@ import Data.List as List
 import LCEvaluator qualified as E
 import LCParser qualified as P
 import LCSyntax qualified as S
--- import System.IO
 import System.IO qualified as IO
 import System.IO.Error qualified as IO
 import qualified System.Posix.Types as S
@@ -59,7 +58,6 @@ main = do
               mainLoop (settings {store = new_store})
             S.Expression exp -> do
               let v = E.evalReduce (reductionType settings) (evaluationType settings) exp (store settings)
-              -- E.evalBetaReduce exp store -- need to case on rt
               putStrLn (S.pretty v)
               mainLoop settings
           Left _s -> do
