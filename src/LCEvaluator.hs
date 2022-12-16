@@ -134,6 +134,7 @@ evalBop Minus (IntE x) (IntE y) = IntE $ x - y
 evalBop Times (IntE x) (IntE y) = IntE $ x * y
 evalBop Divide (IntE x) (IntE 0) = BopE Divide (IntE x) (IntE 0)
 evalBop Divide (IntE x) (IntE y) = IntE $ x `div` y
+evalBop Modulo (IntE x) (IntE 0) = BopE Modulo (IntE x) (IntE 0)
 evalBop Modulo (IntE x) (IntE y) = IntE $ x `mod` y
 evalBop Eq x y = BoolE $ x == y
 evalBop Gt (IntE x) (IntE y) = BoolE $ x > y

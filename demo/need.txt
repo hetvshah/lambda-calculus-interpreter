@@ -1,4 +1,0 @@
-x = 3 * 4 + 10
-y = \arg . arg * arg
-y x
-y x

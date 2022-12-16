@@ -22,4 +22,6 @@ n5 = add two three
 n4 = add two two
 n24 = fac n4
 n6 = sumto n3
-eqnat n24 (mul n6 n4)
+isEqual = eqnat n24 (mul n6 n4)
+isEqual
+isEqual

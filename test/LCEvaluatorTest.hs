@@ -68,8 +68,8 @@ main = do
   QC.quickCheck prop_reduceBetaEta
   putStrLn "prop_callByNeedOnceIsCallByName"
   QC.quickCheck prop_callByNeedOnceIsCallByName
-  -- putStrLn "prop_callByNeedIsReducedInMap"
-  -- QC.quickCheck prop_callByNeedIsReducedInMap
+  putStrLn "prop_callByNeedIsReducedInMap"
+  QC.quickCheck prop_callByNeedIsReducedInMap
   putStrLn "----------------------- addDef -----------------------"
   putStrLn "test_addDef"
   runTestTT test_addDef
@@ -228,14 +228,15 @@ test_avoidCapture =
 prop_callByNeedOnceIsCallByName :: Exp -> Bool
 prop_callByNeedOnceIsCallByName exp = fst (evalReduce Beta Name exp initialStore) == fst (evalReduce Beta Need exp initialStore)
 
-prop_callByNeedIsReducedInMap :: Exp -> Bool
-prop_callByNeedIsReducedInMap exp =
-  let (reducedExp, (count, newDef)) = evalReduce Beta Need (Var "x") (0, Map.fromList [("x", (exp, False))])
-   in case Map.lookup "x" newDef of
-        Just (reducedExpInMap, isReduced) ->
-          let (reducedTwiceExp, _) = evalReduce Beta Need (Var "x") (count, newDef)
-           in isReduced && reducedExp == reducedTwiceExp && reducedExp == reducedExpInMap
-        Nothing -> False
+prop_callByNeedIsReducedInMap :: Exp -> QC.Property
+prop_callByNeedIsReducedInMap exp = QC.within 1000000 $ 
+  let (reducedExp, (count, newDef)) = evalReduce Beta Need (Var "z") (0, Map.fromList [("z", (exp, False))])
+   in case Map.lookup "z" newDef of
+    Just (reducedExpInMap, True) ->
+      let (reducedTwiceExp, _) = evalReduce Beta Need (Var "z") (count, newDef) in 
+      reducedExp == reducedTwiceExp && reducedExp == reducedExpInMap
+    Just (reducedExpInMap, False) -> False
+    Nothing -> False
 
 ------------------------------ betaReduce Tests ------------------------------
 
