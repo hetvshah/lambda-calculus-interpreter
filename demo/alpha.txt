@@ -1,0 +1,4 @@
+x = 3
+returnsX = (\y . (\x . y x)) (\z . x)
+returnsX 
+returnsX 2

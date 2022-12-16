@@ -45,7 +45,7 @@ main = do
                 x <- IO.openFile fn IO.ReadMode
                 mainLoop settings {file = x}
             )
-            (\e -> mainLoop settings)
+            (\e -> mainLoop settings {file = IO.stdin})
         Just (":rt", [reductType]) ->
           case E.reductionToEnum reductType of
             Nothing -> do

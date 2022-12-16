@@ -19,10 +19,7 @@ eqnat = fix (\reqnat.\x.\y. x (y True (const False)) (\x1.y False (\y1.reqnat x1
 sumto = fix (\rsumto.\x. x Zero (\n.add x (rsumto n)))
 n3 = add one two
 n5 = add two three
-n6 = add three three
-n17 = add n6 (add n6 n5)
-n37 = Succ (mul n6 n6)
-n703 = sumto n37
-n720 = fac n6
-eqnat n3 n5
-eqnat n720 (add n703 n17)
+n4 = add two two
+n24 = fac n4
+n6 = sumto n3
+eqnat n24 (mul n6 n4)
