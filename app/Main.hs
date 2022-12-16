@@ -57,9 +57,9 @@ main = do
               let new_store = E.evalAddDef var exp (store settings) -- need to case on rt
               mainLoop (settings {store = new_store})
             S.Expression exp -> do
-              let v = E.evalReduce (reductionType settings) (evaluationType settings) exp (store settings)
-              putStrLn (S.pretty v)
-              mainLoop settings
+              let (exp, new_store) = E.evalReduce (reductionType settings) (evaluationType settings) exp (store settings)
+              putStrLn (S.pretty exp)
+              mainLoop settings {store = new_store}
           Left _s -> do
             putStrLn _s
             mainLoop settings

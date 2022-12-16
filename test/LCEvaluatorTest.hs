@@ -4,14 +4,16 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import LCEvaluator
 import LCSyntax
-    ( Var,
-      Exp(..),
-      Bop(Plus, Divide),
-      ReductionType(BetaEta, Beta, Eta), 
-      EvaluationType(Name, Need) )
+  ( Bop (Divide, Plus),
+    EvaluationType (Name, Need),
+    Exp (..),
+    ReductionType (Beta, BetaEta, Eta),
+    Statement (..),
+    Var,
+  )
+import Test.HUnit (Test (..), runTestTT, (~:), (~?=))
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
-import Test.HUnit (Test (..), runTestTT, (~:), (~?=))
 
 main :: IO ()
 main = do
@@ -27,6 +29,9 @@ main = do
   QC.quickCheck prop_substituteAllButArgs
   putStrLn "prop_substituteTwice"
   QC.quickCheck prop_substituteTwice
+  putStrLn "----------------------- avoidCapture -----------------------"
+  putStrLn "test_avoidCapture"
+  runTestTT test_avoidCapture
   putStrLn "----------------------- betaReduce -----------------------"
   putStrLn "test_betaReduce"
   runTestTT test_betaReduce
@@ -57,9 +62,10 @@ main = do
   QC.quickCheck prop_reduceEta
   putStrLn "prop_reduceBetaEta"
   QC.quickCheck prop_reduceBetaEta
-  putStrLn "----------------------- avoidCapture -----------------------"
-  putStrLn "test_avoidCapture"
-  runTestTT test_avoidCapture
+  putStrLn "prop_callByNeedOnceIsCallByName"
+  QC.quickCheck prop_callByNeedOnceIsCallByName
+  putStrLn "prop_callByNeedIsReducedInMap"
+  QC.quickCheck prop_callByNeedIsReducedInMap
   putStrLn "nice work ツ"
 
 -- λ x . x
@@ -212,37 +218,37 @@ test_reduce :: Test
 test_reduce =
   "reduce tests"
     ~: TestList
-      [ evalReduce Beta Name ex1 initialStore ~?= ex1,
-        evalReduce Eta Name ex1 initialStore ~?= ex1,
-        evalReduce BetaEta Name ex1 initialStore ~?= ex1,
-        evalReduce Beta Name ex2 initialStore ~?= ex2,
-        evalReduce Eta Name ex2 initialStore ~?= ex2,
-        evalReduce BetaEta Name ex2 initialStore ~?= ex2,
-        evalReduce Beta Name ex3 initialStore ~?= Var "x",
-        evalReduce Eta Name ex3 initialStore ~?= ex3,
-        evalReduce BetaEta Name ex3 initialStore ~?= Var "x",
-        evalReduce Beta Name ex4 initialStore ~?= Var "y",
-        evalReduce Eta Name ex4 initialStore ~?= ex4,
-        evalReduce BetaEta Name ex4 initialStore ~?= Var "y",
-        evalReduce Beta Name ex5 initialStore ~?= Fun "x" (IntE 7),
-        evalReduce Eta Name ex5 initialStore ~?= ex5,
-        evalReduce BetaEta Name ex5 initialStore ~?= Fun "x" (IntE 7),
-        evalReduce Beta Name ex6 initialStore ~?= ex6,
-        evalReduce Eta Name ex6 initialStore ~?= ex6,
-        evalReduce BetaEta Name ex6 initialStore ~?= ex6,
-        evalReduce Beta Name ex7 initialStore ~?= Fun "x" (Var "M's Body"),
-        evalReduce Eta Name ex7 initialStore ~?= Fun "M" (Var "M's Body"),
-        evalReduce BetaEta Name ex7 initialStore ~?= Fun "x" (Var "M's Body")
+      [ fst (evalReduce Beta Name ex1 initialStore) ~?= ex1,
+        fst (evalReduce Eta Name ex1 initialStore) ~?= ex1,
+        fst (evalReduce BetaEta Name ex1 initialStore) ~?= ex1,
+        fst (evalReduce Beta Name ex2 initialStore) ~?= ex2,
+        fst (evalReduce Eta Name ex2 initialStore) ~?= ex2,
+        fst (evalReduce BetaEta Name ex2 initialStore) ~?= ex2,
+        fst (evalReduce Beta Name ex3 initialStore) ~?= Var "x",
+        fst (evalReduce Eta Name ex3 initialStore) ~?= ex3,
+        fst (evalReduce BetaEta Name ex3 initialStore) ~?= Var "x",
+        fst (evalReduce Beta Name ex4 initialStore) ~?= Var "y",
+        fst (evalReduce Eta Name ex4 initialStore) ~?= ex4,
+        fst (evalReduce BetaEta Name ex4 initialStore) ~?= Var "y",
+        fst (evalReduce Beta Name ex5 initialStore) ~?= Fun "x" (IntE 7),
+        fst (evalReduce Eta Name ex5 initialStore) ~?= ex5,
+        fst (evalReduce BetaEta Name ex5 initialStore) ~?= Fun "x" (IntE 7),
+        fst (evalReduce Beta Name ex6 initialStore) ~?= ex6,
+        fst (evalReduce Eta Name ex6 initialStore) ~?= ex6,
+        fst (evalReduce BetaEta Name ex6 initialStore) ~?= ex6,
+        fst (evalReduce Beta Name ex7 initialStore) ~?= Fun "x" (Var "M's Body"),
+        fst (evalReduce Eta Name ex7 initialStore) ~?= Fun "M" (Var "M's Body"),
+        fst (evalReduce BetaEta Name ex7 initialStore) ~?= Fun "x" (Var "M's Body")
       ]
 
 prop_reduceBeta :: Exp -> Bool
-prop_reduceBeta exp = evalReduce Beta Name exp initialStore == evalBetaReduce Name exp initialStore
+prop_reduceBeta exp = fst (evalReduce Beta Name exp initialStore) == evalBetaReduce Name exp initialStore
 
 prop_reduceEta :: Exp -> Bool
-prop_reduceEta exp = evalReduce Eta Name exp initialStore == evalEtaReduce Name exp initialStore
+prop_reduceEta exp = fst (evalReduce Eta Name exp initialStore) == evalEtaReduce Name exp initialStore
 
 prop_reduceBetaEta :: Exp -> Bool
-prop_reduceBetaEta exp = evalReduce BetaEta Name exp initialStore == evalEtaReduce Name (evalBetaReduce Name exp initialStore) initialStore
+prop_reduceBetaEta exp = fst (evalReduce BetaEta Name exp initialStore) == evalEtaReduce Name (evalBetaReduce Name exp initialStore) initialStore
 
 -- (λ y . (λ x. x y)) (λ z . x)
 capAv1 :: Exp
@@ -294,3 +300,22 @@ test_avoidCapture =
         evalSubstitute "x" (Var "y") capAv4 initialStore ~?= capAv4Expected,
         evalSubstitute "x" (Fun "y" (BopE Plus (Var "w") (Var "z"))) capAv5 initialStore ~?= capAv5Expected
       ]
+
+prop_callByNeedOnceIsCallByName :: Exp -> Bool
+prop_callByNeedOnceIsCallByName exp = fst (evalReduce Beta Name exp initialStore) == fst (evalReduce Beta Need exp initialStore)
+
+prop_callByNeedIsReducedInMap :: Exp -> Bool
+prop_callByNeedIsReducedInMap exp =
+  let (reducedExp, (count, newDef)) = evalReduce Beta Need (Var "x") (0, Map.fromList [("x", (exp, False))])
+   in case Map.lookup "x" newDef of
+        Just (reducedExpInMap, isReduced) ->
+          let (reducedTwiceExp, _) = evalReduce Beta Need (Var "x") (count, newDef)
+           in isReduced && reducedExp == reducedTwiceExp && reducedExp == reducedExpInMap
+        Nothing -> False
+
+-- test_callByNeed :: Test
+-- test_callByNeed =
+--   "call by need tests"
+--     ~: TestList
+--       [ evalReduce Beta Need () initialStore ~?= undefined
+--       ]

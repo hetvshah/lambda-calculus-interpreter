@@ -1,5 +1,6 @@
 module LCSyntax where
 
+import Control.Monad (liftM2)
 import Data.Bool qualified as PP
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
@@ -110,8 +111,6 @@ instance Arbitrary Statement where
   arbitrary = QC.sized genStatement
   shrink (Assign v e) = [Assign v e' | e' <- shrink e]
   shrink (Expression e) = [Expression e' | e' <- shrink e]
-
--------------------------------- Pretty Printer --------------------------------
 
 class PP a where
   pp :: a -> Doc

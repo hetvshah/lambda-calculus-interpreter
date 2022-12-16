@@ -225,5 +225,5 @@ reduce Beta ct exp = betaReduce ct exp
 reduce Eta ct exp = etaReduce ct exp
 reduce BetaEta ct exp = etaReduce ct =<< betaReduce ct exp
 
-evalReduce :: ReductionType -> EvaluationType -> Exp -> Store -> Exp
-evalReduce rt ct exp = S.evalState (reduce rt ct exp)
+evalReduce :: ReductionType -> EvaluationType -> Exp -> Store -> (Exp, Store)
+evalReduce rt ct exp = S.runState (reduce rt ct exp)
