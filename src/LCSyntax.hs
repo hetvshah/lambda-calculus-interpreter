@@ -1,12 +1,20 @@
-module LCSyntax where
+module LCSyntax
+  ( Var,
+    Exp (..),
+    Uop (..),
+    Bop (..),
+    Statement (..),
+    level,
+    pretty,
+  )
+where
 
-import Control.Monad (liftM2)
-import Data.Bool qualified as PP
 import Test.QuickCheck (Arbitrary (..), Gen)
 import Test.QuickCheck qualified as QC
 import Text.PrettyPrint (Doc, (<+>))
 import Text.PrettyPrint qualified as PP
 
+-------------------------------- Type and Constant Definitions --------------------------------
 lambda :: String
 lambda = "\\"
 
@@ -40,6 +48,12 @@ data Bop
   | Le -- `<=` :: a -> a -> Bool
   deriving (Eq, Show, Enum, Bounded)
 
+data Statement
+  = Assign Var Exp -- x = e
+  | Expression Exp -- some expression to evaluate
+  deriving (Eq, Show)
+
+-- | Assigns binary operators a level for order of operations
 level :: Bop -> Int
 level Times = 7
 level Divide = 7
@@ -47,18 +61,7 @@ level Plus = 5
 level Minus = 5
 level _ = 3 -- comparison operators
 
-data Statement
-  = Assign Var Exp -- x = e
-  | Expression Exp -- some expression to evaluate
-  deriving (Eq, Show)
-
 -------------------------------- Arbitrary Definitions --------------------------------
-
-instance Arbitrary Uop where
-  arbitrary = QC.arbitraryBoundedEnum
-
-instance Arbitrary Bop where
-  arbitrary = QC.arbitraryBoundedEnum
 
 -- | Generate a small set of names for generated tests. These names are guaranteed to not include
 -- reserved words
@@ -92,6 +95,12 @@ genStatement n =
   where
     n' = n `div` 2
 
+instance Arbitrary Uop where
+  arbitrary = QC.arbitraryBoundedEnum
+
+instance Arbitrary Bop where
+  arbitrary = QC.arbitraryBoundedEnum
+
 instance Arbitrary Exp where
   arbitrary = QC.sized genExp
 
@@ -112,6 +121,8 @@ instance Arbitrary Statement where
   shrink (Assign v e) = [Assign v e' | e' <- shrink e]
   shrink (Expression e) = [Expression e' | e' <- shrink e]
 
+-------------------------------- Pretty Printers --------------------------------
+
 class PP a where
   pp :: a -> Doc
 
@@ -124,6 +135,7 @@ pretty = PP.render . pp
 oneLine :: PP a => a -> String
 oneLine = PP.renderStyle (PP.style {PP.mode = PP.OneLineMode}) . pp
 
+-- | Returns true if exp is a var, int, or bool and false otherwise
 isValue :: Exp -> Bool
 isValue exp = case exp of
   Var _ -> True
@@ -131,6 +143,7 @@ isValue exp = case exp of
   BoolE _ -> True
   _ -> False
 
+-- | Add parenthesis around exp as long as it is not a single value
 ppp :: Exp -> Doc
 ppp e
   | isValue e = pp e
@@ -176,20 +189,3 @@ instance PP Bop where
 instance PP Statement where
   pp (Assign x e) = pp x <+> PP.equals <+> pp e
   pp (Expression e) = pp e
-
-data ReductionType = Beta | Eta | BetaEta
-
-reductionToEnum :: String -> ReductionType
-reductionToEnum str = case str of
-  "beta" -> Beta
-  "eta" -> Eta
-  "beta-eta" -> BetaEta
-  _ -> error "shouldn't come here"
-
-data EvaluationType = Name | Need
-
-evaluationToEnum :: String -> EvaluationType
-evaluationToEnum str = case str of
-  "name" -> Name
-  "need" -> Need
-  _ -> error "shouldn't come here"
