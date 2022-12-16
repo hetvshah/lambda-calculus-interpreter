@@ -1,4 +1,4 @@
-module LCParser (parseLCStat) where
+module LCParser (parseLCStat, statementP, fullExpP, expP, funP, bopP, uopP, boolP, intP, varP) where
 
 import Control.Applicative (Alternative (many, some, (<|>)))
 import Data.Char qualified as Char
