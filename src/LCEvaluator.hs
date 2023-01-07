@@ -168,14 +168,7 @@ reduceVar ct v reduceFun = do
 -- | Evaluates/simplies the expression through beta reduction
 betaReduce :: EvaluationType -> Exp -> State Store Exp
 betaReduce ct exp = case exp of
-  Fun v e -> do
-    (_, def) <- S.get
-    case Map.lookup v def of
-      Nothing -> Fun v <$> betaReduce ct e
-      Just _ -> do
-        new_var <- getFreshVar v (getFreeVars e)
-        new_e <- substitute v (Var new_var) e
-        Fun new_var <$> betaReduce ct new_e
+  Fun v e -> Fun v <$> betaReduce ct e
   App e1 e2 -> do
     whnf_e1 <- whnf e1
     case whnf_e1 of
