@@ -1,5 +1,5 @@
 # Lambda Calculus Interpreter
-Parses well-formed lambda calulus expressions and assignments from the terminal or files and can perform the following:
+Parses well-formed lambda calculus expressions and assignments from the terminal or files and can perform the following:
 - alpha conversion/substitution
 - beta reduction
 - eta reduction
